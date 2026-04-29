@@ -61,13 +61,23 @@ const register = async () => {
             placeholder="Password"
           />
           <div style="padding-top: 8px">
-            <button class="counter" type="submit">会員登録</button>
+            <button
+              class="text-base px-[10px] py-[5px] rounded-[5px] text-[var(--accent)] bg-[var(--accent-bg)] border-2 border-transparent transition-colors duration-300 mb-6 hover:border-[var(--accent-border)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] focus-visible:outline-offset-2"
+              type="submit"
+            >
+              会員登録
+            </button>
           </div>
         </div>
       </form>
       <p v-if="error" class="error">{{ error }}</p>
     </div>
-    <button class="counter" @click="router.push('/')">ログインはこちら</button>
+    <button
+      class="text-base px-[10px] py-[5px] rounded-[5px] text-[var(--accent)] bg-[var(--accent-bg)] border-2 border-transparent transition-colors duration-300 mb-6 hover:border-[var(--accent-border)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] focus-visible:outline-offset-2"
+      @click="router.push('/')"
+    >
+      ログインはこちら
+    </button>
   </section>
 
   <div class="ticks"></div>

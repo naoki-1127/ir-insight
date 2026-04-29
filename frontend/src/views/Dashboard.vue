@@ -31,11 +31,6 @@ type Company = {
   ticker: string;
 };
 
-const props = defineProps<{
-  file: File | null;
-  selectedCompanyId: string | null;
-}>();
-
 type ViewMode = "upload" | "preview" | "company";
 
 const currentView = ref<ViewMode>("upload");
@@ -176,7 +171,7 @@ const handleUrl = async (url: string) => {
         @upload="openUpload"
       />
       <!-- Main Content -->
-      <main class="flex-1 flex items-center justify-center p-10">
+      <main class="flex-1 flex p-6">
         <UploadView
           v-if="currentView === 'upload'"
           @fileSelected="handleFile"

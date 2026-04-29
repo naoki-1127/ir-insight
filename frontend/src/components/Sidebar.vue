@@ -20,7 +20,7 @@ const selectCompany = (id: string) => {
         v-for="company in companies"
         :key="company.id"
         @click="selectCompany(company.id)"
-        class="px-4 py-2 cursor-pointer"
+        class="px-4 py-2 cursor-pointer text-start"
         :class="
           selectedCompanyId === company.id
             ? 'bg-[#1f2020] text-white rounded'

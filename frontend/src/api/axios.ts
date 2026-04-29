@@ -1,8 +1,7 @@
 // src/api/axios.js
 import axios from "axios";
 import { useAuthStore } from "../stores/auth";
-import { useRouter } from "vue-router";
-const router = useRouter();
+import router from "../router";
 
 const api = axios.create({
   baseURL: "http://localhost:3000",

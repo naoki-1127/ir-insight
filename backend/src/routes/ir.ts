@@ -7,7 +7,7 @@ import { authMiddleware, AuthRequest } from "../middleware/auth.js";
 import fs from "fs/promises";
 import path from "path";
 import { createRequire } from "module";
-import { summarizeIR } from "../services/ai.service";
+import { summarizeIR, summarizeIRText } from "../services/ai.service";
 const require = createRequire(import.meta.url);
 const pdfModule = require("pdf-parse");
 const pdf = pdfModule.default ?? pdfModule;
@@ -126,7 +126,6 @@ router.get("/detail", authMiddleware, async (req: AuthRequest, res) => {
   const data = await pdf(fileBuffer);
   res.json(data);
 });
-
 //AI要約
 router.post("/summary", authMiddleware, async (req: AuthRequest, res: any) => {
   if (!req.body.text) {
@@ -136,6 +135,33 @@ router.post("/summary", authMiddleware, async (req: AuthRequest, res: any) => {
   res.json(result);
 });
 
+router.get(
+  "/summary/:companyId/text",
+  authMiddleware,
+  async (req: AuthRequest, res: any) => {
+    const { companyId } = req.params;
+    if (!companyId) {
+      return res.status(400).json({ error: "企業情報が取得できませんでした" });
+    }
+    const checkDocument = await prisma.document.findFirst({
+      where: { companyId: companyId },
+      orderBy: [{ fiscalYear: "desc" }, { quarter: "desc" }],
+    });
+    if (!checkDocument) {
+      return res.status(400).json({ error: "IR情報が取得できませんでした" });
+    }
+    const dirPath = checkDocument.fileUrl;
+    const fileBuffer = await fs.readFile(dirPath);
+    const data = await pdf(fileBuffer);
+    const result = await summarizeIRText(data.text);
+    res.json({
+      ...result,
+      fiscalYear: checkDocument.fiscalYear,
+      quarter: checkDocument.quarter,
+    });
+  },
+);
+
 //企業登録
 router.post(
   "/company",
@@ -144,8 +170,6 @@ router.post(
     if (!req.body.symbol) {
       return res.status(400).json({ error: "銘柄情報がありません" });
     }
-    console.log("aaa");
-    console.log(req.body);
     const company = await createCompany(req.body);
     const document = await createDocument(company, req.body);
     res.json({ company: company, document: document });

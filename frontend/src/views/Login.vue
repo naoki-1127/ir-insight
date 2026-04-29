@@ -61,12 +61,20 @@ const login = async () => {
           />
         </div>
         <div style="padding-top: 8px">
-          <button class="counter" type="submit">ログイン</button>
+          <button
+            class="text-base px-[10px] py-[5px] rounded-[5px] text-[var(--accent)] bg-[var(--accent-bg)] border-2 border-transparent transition-colors duration-300 mb-6 hover:border-[var(--accent-border)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] focus-visible:outline-offset-2"
+            type="submit"
+          >
+            ログイン
+          </button>
         </div>
       </form>
       <p v-if="error" class="error">{{ error }}</p>
     </div>
-    <button class="counter" @click="router.push('/register')">
+    <button
+      class="text-base px-[10px] py-[5px] rounded-[5px] text-[var(--accent)] bg-[var(--accent-bg)] border-2 border-transparent transition-colors duration-300 mb-6 hover:border-[var(--accent-border)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] focus-visible:outline-offset-2"
+      @click="router.push('/register')"
+    >
       会員登録はこちら
     </button>
   </section>
