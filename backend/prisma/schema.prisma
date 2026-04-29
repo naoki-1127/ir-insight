@@ -1,0 +1,56 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String     @id @default(uuid())
+  email     String     @unique
+  password  String
+  createdAt DateTime   @default(now())
+  documents Document[]
+}
+
+model Company {
+  id        String     @id @default(uuid())
+  name      String
+  ticker    String     @unique
+  market    String
+  createdAt DateTime   @default(now())
+  documents Document[]
+}
+
+model Document {
+  id        String            @id @default(uuid())
+  title     String
+  fileUrl   String
+  companyId String
+  createdAt DateTime          @default(now())
+  userId    String?
+  company   Company           @relation(fields: [companyId], references: [id])
+  user      User?             @relation(fields: [userId], references: [id])
+  contents  DocumentContent[]
+  fiscalYear Int
+  quarter    Int?
+  periodType String
+}
+
+model DocumentContent {
+  id         String   @id @default(uuid())
+  documentId String
+  contentEn  String
+  contentJa  String?
+  orderIndex Int  
+  document   Document @relation(fields: [documentId], references: [id])
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    String
+  createdAt DateTime @default(now())
+  expiredAt DateTime
+}
