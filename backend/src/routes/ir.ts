@@ -23,7 +23,6 @@ type CreateCompanyBody = {
 };
 
 const prisma = new PrismaClient({ adapter });
-
 const storage = multer.diskStorage({
   destination: async (req: AuthRequest, file: any, cb: any) => {
     const userId = req.userId; // 認証済み前提
@@ -40,7 +39,12 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB
+  },
+});
 
 const createCompany = async (symbol: any) => {
   const checkSymbol = await prisma.company.findUnique({
@@ -59,8 +63,6 @@ const createCompany = async (symbol: any) => {
   return checkSymbol.id;
 };
 const createDocument = async (companyId: any, irdocument: any) => {
-  console.log(companyId);
-  console.log(irdocument);
   const [fyPart, qPart] = irdocument.fiscal_period.split(" ");
   const fiscalYear = Number(fyPart.replace("FY", ""));
   const quarter = Number(qPart.replace("Q", ""));
@@ -116,16 +118,6 @@ router.get("/companies", authMiddleware, async (req: AuthRequest, res: any) => {
   return res.json(data);
 });
 
-//bufferを取得
-router.get("/detail", authMiddleware, async (req: AuthRequest, res) => {
-  if (!req.body.path) {
-    return res.status(400).json({ error: "ファイルがありません" });
-  }
-  const dirPath = req.body.path;
-  const fileBuffer = await fs.readFile(dirPath);
-  const data = await pdf(fileBuffer);
-  res.json(data);
-});
 //AI要約
 router.post("/summary", authMiddleware, async (req: AuthRequest, res: any) => {
   if (!req.body.text) {
@@ -191,8 +183,13 @@ router.post(
         originalName = req.file.originalname;
       } else if (req.body.url) {
         const url = req.body.url;
+        //if (!url.startsWith("https://")) throw new Error("invalid url");
         const userId = req.userId;
-        const response = await fetch(url);
+        const controller = new AbortController();
+        setTimeout(() => controller.abort(), 500000);
+        const response = await fetch(url, {
+          signal: controller.signal,
+        });
         if (!response.ok) {
           throw new Error("取得失敗");
         }
@@ -223,8 +220,6 @@ router.post(
       // 共通処理（ここがミソ）
       const fileBuffer = await fs.readFile(filePath);
       const data = await pdf(fileBuffer);
-
-      console.log(req.file);
       return res.json({
         message: "アップロード成功",
         file: {
@@ -240,7 +235,7 @@ router.post(
   },
 );
 
-// Todo 更新
+// Document 更新
 router.put("/:id", authMiddleware, async (req: AuthRequest, res: any) => {
   const { id } = req.params;
   const { title, completed } = req.body;
@@ -261,7 +256,6 @@ router.delete(
   authMiddleware,
   async (req: AuthRequest, res: any) => {
     const { id } = req.params;
-    //console.log(id);
     const document = await prisma.document.deleteMany({
       where: { id: id },
     });

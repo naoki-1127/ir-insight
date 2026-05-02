@@ -34,7 +34,6 @@ type Company = {
 type ViewMode = "upload" | "preview" | "company";
 
 const currentView = ref<ViewMode>("upload");
-
 const fileName = ref("");
 const fileText = ref("");
 const selectedCompanyId = ref("");
@@ -64,11 +63,11 @@ const openUpload = () => {
 
 const generateSummary = async () => {
   // ここでAPI呼ぶ
-  console.log("要約開始");
   try {
     const res = await api.post("/ir/summary", {
       text: fileText.value,
     });
+    console.log(res);
     summary.value = res.data;
   } catch (err: any) {
     console.error(err);
@@ -133,7 +132,6 @@ const handleFile = async (event: Event) => {
         "Content-Type": "multipart/form-data",
       },
     });
-    console.log(res);
     fileName.value = res.data.file.originalname;
     fileText.value = res.data.text;
     uploadFileName.value = res.data.file.path;
@@ -145,8 +143,6 @@ const handleUrl = async (url: string) => {
     const res = await api.post("/ir", {
       url,
     });
-
-    console.log(res);
     fileName.value = res.data.fileName; // URLなので自前で作る
     fileText.value = res.data.text;
     uploadFileName.value = res.data.file.path;

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, watch, ref } from "vue";
 import api from "../../api/axios";
+import { CircleCheck, TriangleAlert } from "@lucide/vue";
 
 type Company = {
   id: string;
@@ -27,7 +28,7 @@ const company = computed(() =>
 );
 
 const groupedDocuments = computed(() => {
-  if (!company.value) return {};
+  if (!company.value) return [];
 
   const grouped = company.value.documents.reduce((acc: any, doc: any) => {
     if (!acc[doc.fiscalYear]) acc[doc.fiscalYear] = [];
@@ -35,16 +36,14 @@ const groupedDocuments = computed(() => {
     return acc;
   }, {});
 
-  // 親（年）→ 子（四半期）の順でソート
-  const sorted = Object.entries(grouped)
+  return Object.entries(grouped)
     .sort(([a], [b]) => Number(b) - Number(a)) // 年降順
-    .map(([year, docs]: any) => [
+    .map(([year, docs]: any) => ({
       year,
-      docs.sort((a: any, b: any) => b.quarter - a.quarter), // 四半期降順
-    ]);
-  console.log(Object.fromEntries(sorted));
-  return Object.fromEntries(sorted);
+      docs: docs.sort((a: any, b: any) => b.quarter - a.quarter), // 四半期降順
+    }));
 });
+
 let currentRequestId = 0;
 watch(
   () => props.companyId,
@@ -76,11 +75,15 @@ watch(
       <div class="flex gap-4">
         <div class="bg-[#1f2020] p-4 rounded w-64 text-center">
           <p class="text-xs font-bold text-start">Growth Score</p>
-          <p class="text-2xl text-green-400 font-bold">82</p>
+          <p class="text-gray-400">
+            <span class="text-2xl text-green-400 font-bold">82</span>/100
+          </p>
         </div>
         <div class="bg-[#1f2020] p-4 rounded w-72 text-center">
           <p class="text-xs font-bold text-start">詳細分析</p>
-          <p class="text-2xl text-green-400 font-bold">82</p>
+          <p class="text-gray-400">
+            <span class="text-2xl text-green-400 font-bold">82</span>/100
+          </p>
         </div>
       </div>
     </div>
@@ -95,22 +98,26 @@ watch(
 
       <div class="bg-[#1f2020] p-4 rounded">
         <p class="text-xs text-gray-400 text-start">ガイダンス（次四半期）</p>
-        <p class="text-green-400 text-lg font-bold text-start">上方修正</p>
+        <p class="text-green-400 text-lg text-start">上方修正</p>
+        <p class="text-green-400 text-xs text-start">前回予想比 +5%</p>
       </div>
 
       <div class="bg-[#1f2020] p-4 rounded">
         <p class="text-xs text-gray-400 text-start">粗利率（直近四半期）</p>
         <p class="text-lg font-bold text-start">72%</p>
+        <p class="text-green-400 text-xs text-start">+2.1pt YoY</p>
       </div>
 
       <div class="bg-[#1f2020] p-4 rounded">
         <p class="text-xs text-gray-400 text-start">フリーキャッシュフロー</p>
         <p class="text-lg font-bold text-start">$1.55B</p>
+        <p class="text-green-400 text-xs text-start">+31% YoY</p>
       </div>
 
       <div class="bg-[#1f2020] p-4 rounded">
         <p class="text-xs text-gray-400 text-start">営業利益率（直近四半期）</p>
         <p class="text-lg font-bold text-start">20%</p>
+        <p class="text-green-400 text-xs text-start">+1.8pt YoY</p>
       </div>
     </div>
 
@@ -140,7 +147,19 @@ watch(
           >
         </p>
         <ul v-if="summaryText" class="text-xs space-y-1 text-left">
-          <li v-for="(summary, index) in summaryText.summaries" :key="index">
+          <li
+            v-for="(summary, index) in summaryText.summaries"
+            :key="index"
+            class="flex items-center gap-2"
+          >
+            <CircleCheck
+              class="w-4 h-4 mt-0.5 shrink-0"
+              :class="{
+                'text-green-400': summary.sentiment === 'positive',
+                'text-red-400': summary.sentiment === 'negative',
+                'text-gray-400': summary.sentiment === 'neutral',
+              }"
+            />
             {{ summary.text }}
           </li>
         </ul>
@@ -154,20 +173,20 @@ watch(
         <p class="text-sm font-bold mb-2 text-start">ドキュメント一覧</p>
 
         <div
-          v-for="(docs, year) in groupedDocuments"
-          :key="year"
+          v-for="group in groupedDocuments"
+          :key="group.year"
           class="flex items-start gap-4 mb-4"
         >
-          <div class="w-20 text-gray-400 font-bold">FY{{ year }}</div>
+          <div class="w-20 text-gray-400 font-bold">FY{{ group.year }}</div>
 
           <div class="grid grid-cols-4 gap-4 flex-1">
             <div
-              v-for="doc in docs"
+              v-for="doc in group.docs"
               :key="doc.id"
               class="bg-[#36393b] p-3 rounded"
             >
               <p class="text-xs font-bold">
-                {{ year }}年度　第{{ doc.quarter }}四半期決算発表
+                {{ group.year }}年度　第{{ doc.quarter }}四半期決算発表
               </p>
             </div>
           </div>
@@ -179,12 +198,14 @@ watch(
         <p class="text-sm font-bold mb-2 text-start">
           注目すべきリスク・懸念事項
         </p>
-        <ul
-          v-if="summaryText"
-          class="text-xs text-yellow-400 space-y-1 text-start"
-        >
-          <li v-for="(risk, index) in summaryText.risks" :key="index">
-            <span>⚠ </span>{{ risk }}
+        <ul v-if="summaryText" class="text-xs space-y-1 text-start">
+          <li
+            v-for="(risk, index) in summaryText.risks"
+            :key="index"
+            class="flex items-center gap-2"
+          >
+            <TriangleAlert class="w-4 h-4 mt-0.5 text-yellow-400 shrink-0" />
+            <span>{{ risk }}</span>
           </li>
         </ul>
       </div>
