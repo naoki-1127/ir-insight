@@ -14,7 +14,7 @@ onMounted(() => {
 
 type Summary = {
   title: string;
-  symbol: string;
+  ticker: string;
   company_name: string;
   fiscal_period: string;
   revenue: number;

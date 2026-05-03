@@ -1,7 +1,7 @@
 <script setup lang="ts">
 type Summary = {
   title: string;
-  symbol: string;
+  ticker: string;
   company_name: string;
   fiscal_period: string;
   revenue: number;
@@ -17,7 +17,7 @@ const emit = defineEmits(["close", "generate", "save"]);
 
 const summaryLists = [
   { key: "title", label: "IRタイトル" },
-  { key: "symbol", label: "銘柄" },
+  { key: "ticker", label: "銘柄" },
   { key: "company_name", label: "会社名" },
   { key: "fiscal_period", label: "会計期" },
   { key: "revenue", label: "売上" },

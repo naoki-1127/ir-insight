@@ -36,19 +36,18 @@ const generateTokens = (userId: string) => {
   const refreshToken = crypto.randomBytes(32).toString("hex");
   return { accessToken, refreshToken };
 };
-app.get("/", async (req, res) => {
+app.get("/", async (_req, res) => {
   const result = await prisma.$queryRaw`SELECT * FROM now()`;
   res.json(result); // .rows は pg の Pool 用。$queryRaw は配列をそのまま返す
 });
 
-app.get("/do", async (req, res) => {
+app.get("/do", async (_req, res) => {
   const result = await prisma.$queryRaw`SELECT * FROM User`;
   res.json(result); // .rows は pg の Pool 用。$queryRaw は配列をそのまま返す
 });
 
 app.post("/register", async (req, res) => {
   try {
-    const result = req.body;
     const { email, password } = req.body;
     const checkUser = await prisma.user.findUnique({
       where: { email: email },

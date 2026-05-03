@@ -46,7 +46,7 @@ export const summarizeIR = async (text: string): Promise<IRSummary> => {
 項目:
 - title (IRタイトル)
 - company_name（会社名）
-- symbol（ティッカーシンボル）
+- ticker（ティッカーシンボル）
 - fiscal_period（例: FY2026 Q2）
 - revenue（売上）
 - previous_revenue（前期同会計期売上）
@@ -59,7 +59,7 @@ export const summarizeIR = async (text: string): Promise<IRSummary> => {
 {
   "title": "第4Qの決算報告"
   "company_name": "Palo Alto Networks",
-  "symbol": "PANW",
+  "ticker": "PANW",
   "fiscal_period": "FY2026 Q2",
   "revenue": 1200000000000,
   "previous_revenue": 1000000000000,

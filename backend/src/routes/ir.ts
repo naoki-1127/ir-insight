@@ -1,5 +1,5 @@
 // src/routes/todo.ts
-import express from "express";
+import express, { Response } from "express";
 import multer from "multer";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -16,11 +16,24 @@ const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL,
 });
 
-type CreateCompanyBody = {
+type CreateCompanyReq = {
   ticker: string;
-  company: string;
+  company_name: string;
   market: string;
 };
+type CreateDocumentReq = {
+  fiscal_period: string;
+  fileName: string;
+  title: string;
+};
+type CreateCompanySuccessRes = {
+  company: string | null;
+  document: string | null;
+};
+type ErrorResponse = {
+  error: string;
+};
+type CompanyRes = CreateCompanySuccessRes | ErrorResponse;
 
 const prisma = new PrismaClient({ adapter });
 const storage = multer.diskStorage({
@@ -46,23 +59,31 @@ const upload = multer({
   },
 });
 
-const createCompany = async (symbol: any) => {
-  const checkSymbol = await prisma.company.findUnique({
-    where: { ticker: symbol.symbol },
+const createCompany = async (input: CreateCompanyReq) => {
+  const checkTicker = await prisma.company.findUnique({
+    where: { ticker: input.ticker },
   });
-  if (!checkSymbol) {
-    const company = await prisma.company.create({
-      data: {
-        name: symbol.company_name,
-        ticker: symbol.symbol,
-        market: "US",
-      },
-    });
-    return company.id;
+  if (!checkTicker) {
+    try {
+      const company = await prisma.company.create({
+        data: {
+          name: input.company_name,
+          ticker: input.ticker,
+          market: "US",
+        },
+      });
+      return company.id;
+    } catch {
+      console.log("企業登録時に予期せぬエラーが発生しました");
+      return null;
+    }
   }
-  return checkSymbol.id;
+  return checkTicker.id;
 };
-const createDocument = async (companyId: any, irdocument: any) => {
+const createDocument = async (
+  companyId: CreateCompanyReq,
+  irdocument: CreateDocumentReq,
+) => {
   const [fyPart, qPart] = irdocument.fiscal_period.split(" ");
   const fiscalYear = Number(fyPart.replace("FY", ""));
   const quarter = Number(qPart.replace("Q", ""));
@@ -100,23 +121,27 @@ router.get("/", authMiddleware, async (req: AuthRequest, res: any) => {
 });
 
 // Symbol取得
-router.get("/companies", authMiddleware, async (req: AuthRequest, res: any) => {
-  const data = await prisma.company.findMany({
-    include: {
-      documents: {
-        orderBy: [
-          {
-            fiscalYear: "desc",
-          },
-          {
-            quarter: "desc",
-          },
-        ],
+router.get(
+  "/companies",
+  authMiddleware,
+  async (_req: AuthRequest, res: any) => {
+    const data = await prisma.company.findMany({
+      include: {
+        documents: {
+          orderBy: [
+            {
+              fiscalYear: "desc",
+            },
+            {
+              quarter: "desc",
+            },
+          ],
+        },
       },
-    },
-  });
-  return res.json(data);
-});
+    });
+    return res.json(data);
+  },
+);
 
 //AI要約
 router.post("/summary", authMiddleware, async (req: AuthRequest, res: any) => {
@@ -158,8 +183,8 @@ router.get(
 router.post(
   "/company",
   authMiddleware,
-  async (req: AuthRequest<CreateCompanyBody>, res: any) => {
-    if (!req.body.symbol) {
+  async (req: AuthRequest<CreateCompanyReq>, res: Response<CompanyRes>) => {
+    if (!req.body.ticker) {
       return res.status(400).json({ error: "銘柄情報がありません" });
     }
     const company = await createCompany(req.body);
