@@ -25,10 +25,19 @@ type Summary = {
   previous_net_income_non_gaap: number;
 };
 
+type dispSummary = {
+  dispRevenue: string;
+  revenue_yoy: string;
+  net_income_yoy: string;
+  margin: string;
+  gap_ratio: string;
+};
+
 type Company = {
   id: string;
   name: string;
   ticker: string;
+  documents: any[];
 };
 
 type ViewMode = "upload" | "preview" | "company";
@@ -46,7 +55,8 @@ const summary = ref<Summary | null>(null);
 const companies = ref<Company[]>([]);
 const file = ref<File | null>(null);
 const showDialog = ref(false);
-
+const fileUrl = ref("");
+const dispRevenue = ref("");
 const openDialog = () => {
   showDialog.value = true;
   summary.value = null;
@@ -67,12 +77,11 @@ const generateSummary = async () => {
     const res = await api.post("/ir/summary", {
       text: fileText.value,
     });
-    console.log(res);
     summary.value = res.data;
+    caluclatedSummary(summary.value);
   } catch (err: any) {
     console.error(err);
   }
-  //showDialog.value = false;
 };
 
 const saveCompanyandIR = async (summary: any, fileName: string) => {
@@ -143,6 +152,7 @@ const handleUrl = async (url: string) => {
     const res = await api.post("/ir", {
       url,
     });
+    fileUrl.value = url;
     fileName.value = res.data.fileName; // URLなので自前で作る
     fileText.value = res.data.text;
     uploadFileName.value = res.data.file.path;
@@ -150,6 +160,13 @@ const handleUrl = async (url: string) => {
   } catch (err: any) {
     console.error(err);
   }
+};
+const caluclatedSummary = (summary: Summary | null): dispSummary => {
+  try {
+    if (summary.revenue >= 1000000000) {
+      dispRevenue.value = (summary.revenue / 1000000000).toFixed(2) + "B";
+    }
+  } catch (err: any) {}
 };
 </script>
 
@@ -175,7 +192,7 @@ const handleUrl = async (url: string) => {
         />
         <PreviewView
           v-else-if="currentView === 'preview'"
-          :file-text="fileText"
+          :file-url="fileUrl"
           :file-name="fileName"
           @generate="openDialog"
         />
