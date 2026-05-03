@@ -85,39 +85,17 @@ ${text.slice(0, 8000)}
     ],
   });
 
-  const content = res.choices[0].message.content ?? "";
+  let content = res.choices[0].message.content ?? "";
+  let jsonContent = JSON.parse(content);
+  let metrics = calcMetrics(jsonContent);
+  jsonContent = { ...jsonContent, ...metrics };
 
   try {
-    return JSON.parse(content);
+    return jsonContent;
   } catch (e) {
     console.error("JSON parse error:", content);
     throw new Error("AIレスポンスのパースに失敗");
   }
-};
-
-export const compareWithAI = async (prev: IRData, curr: IRData) => {
-  const prevMetrics = calcMetrics(prev);
-  const currMetrics = calcMetrics(curr);
-
-  const prompt = `
-  以下の2つの四半期データを比較し、投資家向けに簡潔に分析してください。
-  良い点と懸念点を含めてください。
-  
-  前四半期:
-  ${JSON.stringify(prevMetrics)}
-  
-  今回:
-  ${JSON.stringify(currMetrics)}
-  
-  出力は日本語の文章のみ。
-  `;
-
-  const res = await openai.chat.completions.create({
-    model: "gpt-5-mini",
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  return res.choices[0].message.content;
 };
 
 const calcMetrics = (data: IRData) => {
