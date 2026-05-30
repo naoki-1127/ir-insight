@@ -12,6 +12,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits(["generate"]);
 onMounted(async () => {
+  console.log(props.fileUrl);
   if (props.fileUrl) {
     const pdf = await loadPdf(props.fileUrl);
     const canvas = await renderPage(pdf, 1);
@@ -19,6 +20,7 @@ onMounted(async () => {
   } else {
     if (props.file) {
       const url = URL.createObjectURL(props.file);
+      console.log("test" + url);
       const pdf = await loadPdf(url);
       const canvas = await renderPage(pdf, 1);
       container.value?.appendChild(canvas);

@@ -23,14 +23,10 @@ type Summary = {
   previous_net_income_gaap: number;
   net_income_non_gaap: number;
   previous_net_income_non_gaap: number;
-};
-
-type dispSummary = {
-  dispRevenue: string;
-  revenue_yoy: string;
-  net_income_yoy: string;
-  margin: string;
-  gap_ratio: string;
+  revenue_yoy: number;
+  net_income_yoy: number;
+  margin: number;
+  gap_ratio: number;
 };
 
 type Company = {
@@ -84,12 +80,13 @@ const generateSummary = async () => {
   }
 };
 
-const saveCompanyandIR = async (summary: any, fileName: string) => {
+const saveCompanyandIR = async (data: Summary | null, fileName: string) => {
+  if (!data) return;
   // ここでAPI呼ぶ
   console.log("保存");
   try {
     await api.post("/ir/company", {
-      ...summary,
+      ...data,
       fileName,
     });
   } catch (err: any) {
@@ -161,9 +158,9 @@ const handleUrl = async (url: string) => {
     console.error(err);
   }
 };
-const caluclatedSummary = (summary: Summary | null): dispSummary => {
+const caluclatedSummary = (summary: Summary | null) => {
   try {
-    if (summary.revenue >= 1000000000) {
+    if (summary && summary.revenue >= 1000000000) {
       dispRevenue.value = (summary.revenue / 1000000000).toFixed(2) + "B";
     }
   } catch (err: any) {}
@@ -194,6 +191,7 @@ const caluclatedSummary = (summary: Summary | null): dispSummary => {
           v-else-if="currentView === 'preview'"
           :file-url="fileUrl"
           :file-name="fileName"
+          :file="file"
           @generate="openDialog"
         />
         <CompanyView

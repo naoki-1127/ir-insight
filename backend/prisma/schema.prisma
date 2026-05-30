@@ -21,6 +21,7 @@ model Company {
   market    String
   createdAt DateTime   @default(now())
   documents Document[]
+  financials Financial[]
 }
 
 model Document {
@@ -36,6 +37,7 @@ model Document {
   fiscalYear Int
   quarter    Int?
   periodType String
+  financials Financial[]
 }
 
 model DocumentContent {
@@ -53,4 +55,20 @@ model RefreshToken {
   userId    String
   createdAt DateTime @default(now())
   expiredAt DateTime
+}
+
+model Financial {
+  id        String   @id @default(uuid())
+  companyId String
+  fiscalYear    Int
+  fiscalQuarter Int?
+  periodType    String // "Q" or "FY"
+  revenue              Float?
+  netIncomeGaap        Float?
+  netIncomeNonGaap     Float?
+  documentId String?
+  company   Company  @relation(fields: [companyId], references: [id])
+  document  Document? @relation(fields: [documentId], references: [id])
+  createdAt DateTime @default(now())
+  @@unique([companyId, fiscalYear, fiscalQuarter, periodType])
 }

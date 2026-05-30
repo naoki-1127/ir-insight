@@ -1,5 +1,5 @@
 // src/routes/todo.ts
-import express, { Response } from "express";
+import express from "express";
 import multer from "multer";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -8,6 +8,10 @@ import fs from "fs/promises";
 import path from "path";
 import { createRequire } from "module";
 import { summarizeIR, summarizeIRText } from "../services/ai.service";
+import {
+  get8KPressReleaseHtml2,
+  get8KPressReleaseHtml,
+} from "../services/edgar.service.js";
 const require = createRequire(import.meta.url);
 const pdfModule = require("pdf-parse");
 const pdf = pdfModule.default ?? pdfModule;
@@ -20,8 +24,6 @@ type CreateCompanyReq = {
   ticker: string;
   company_name: string;
   market: string;
-};
-type CreateDocumentReq = {
   fiscal_period: string;
   fileName: string;
   title: string;
@@ -29,6 +31,7 @@ type CreateDocumentReq = {
 type CreateCompanySuccessRes = {
   company: string | null;
   document: string | null;
+  financial: string | null;
 };
 type ErrorResponse = {
   error: string;
@@ -37,7 +40,7 @@ type CompanyRes = CreateCompanySuccessRes | ErrorResponse;
 
 const prisma = new PrismaClient({ adapter });
 const storage = multer.diskStorage({
-  destination: async (req: AuthRequest, file: any, cb: any) => {
+  destination: async (req: AuthRequest, _file: any, cb: any) => {
     const userId = req.userId; // 認証済み前提
     const dir = path.join(process.cwd(), "uploads", `user_${userId}`);
     // ディレクトリがなければ作成
@@ -45,7 +48,7 @@ const storage = multer.diskStorage({
 
     cb(null, dir);
   },
-  filename: (req: AuthRequest, file: any, cb: any) => {
+  filename: (_req: AuthRequest, file: any, cb: any) => {
     // 重複防止
     const uniqueName = `${Date.now()}-${file.originalname}`;
     cb(null, uniqueName);
@@ -72,17 +75,24 @@ const createCompany = async (input: CreateCompanyReq) => {
           market: "US",
         },
       });
-      return company.id;
+      let { documentId, financialId } = await createDocument(company.id, input);
+      return { companyId: company.id, documentId, financialId };
     } catch {
       console.log("企業登録時に予期せぬエラーが発生しました");
       return null;
     }
+  } else {
+    let { documentId, financialId } = await createDocument(
+      checkTicker.id,
+      input,
+    );
+    return { companyId: checkTicker.id, documentId, financialId };
   }
-  return checkTicker.id;
 };
+
 const createDocument = async (
-  companyId: CreateCompanyReq,
-  irdocument: CreateDocumentReq,
+  companyId: string,
+  irdocument: CreateCompanyReq,
 ) => {
   const [fyPart, qPart] = irdocument.fiscal_period.split(" ");
   const fiscalYear = Number(fyPart.replace("FY", ""));
@@ -101,10 +111,60 @@ const createDocument = async (
         companyId: companyId,
       },
     });
-    return document.id;
+    let financialId = await createFinance(document, irdocument);
+    return { documentId: document.id, financialId };
+  } else {
+    let financialId = await createFinance(checkDocument, irdocument);
+    return { documentId: checkDocument.id, financialId };
   }
-  return checkDocument.id;
 };
+
+const createFinance = async (data: any, irdocument: any) => {
+  const checkFinancial = await prisma.financial.findFirst({
+    where: {
+      companyId: data.companyId,
+      fiscalYear: data.fiscalYear,
+      fiscalQuarter: data.quarter,
+    },
+  });
+  if (!checkFinancial) {
+    const finance = await prisma.financial.create({
+      data: {
+        companyId: data.companyId,
+        fiscalYear: data.fiscalYear,
+        fiscalQuarter: data.quarter,
+        periodType: "Q",
+        revenue: irdocument.revenue,
+        netIncomeGaap: irdocument.net_income_gaap,
+        netIncomeNonGaap: irdocument.net_income_non_gaap,
+        documentId: data.id,
+      },
+    });
+    return finance.id;
+  } else {
+    return checkFinancial.id;
+  }
+};
+
+router.get("/8k/:cik", authMiddleware, async (req: AuthRequest, res: any) => {
+  const { cik } = req.params;
+  const data = await get8KPressReleaseHtml2(cik);
+  //console.log(data);
+  res.json(data);
+});
+
+router.get("/8k2/:cik", authMiddleware, async (req: AuthRequest, res: any) => {
+  const { cik } = req.params;
+  try {
+    const data = await get8KPressReleaseHtml(cik);
+    //console.log(data);
+    res.json(data);
+  } catch (e) {
+    return res.status(404).json({
+      message: "エラーが発生しました",
+    });
+  }
+});
 
 // 全 ir 取得
 router.get("/", authMiddleware, async (req: AuthRequest, res: any) => {
@@ -136,6 +196,9 @@ router.get(
               quarter: "desc",
             },
           ],
+          include: {
+            financials: true,
+          },
         },
       },
     });
@@ -187,9 +250,14 @@ router.post(
     if (!req.body.ticker) {
       return res.status(400).json({ error: "銘柄情報がありません" });
     }
-    const company = await createCompany(req.body);
-    const document = await createDocument(company, req.body);
-    res.json({ company: company, document: document });
+    const { companyId, documentId, financialId } = await createCompany(
+      req.body,
+    );
+    res.json({
+      company: companyId,
+      document: documentId,
+      financial: financialId,
+    });
   },
 );
 

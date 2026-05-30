@@ -44,6 +44,43 @@ const groupedDocuments = computed(() => {
     }));
 });
 
+const groupedRevenueYoY = computed(() => {
+  if (!company.value) return [];
+  const financials = company.value.documents.flatMap((doc) => doc.financials);
+  const map = new Map(
+    financials.map((f) => [`${f.fiscalYear}-${f.fiscalQuarter}`, f]),
+  );
+  return financials.map((current) => {
+    const prevKey = `${current.fiscalYear - 1}-${current.fiscalQuarter}`;
+    const previous = map.get(prevKey);
+
+    let yoy = null;
+
+    if (previous) {
+      yoy = (current.revenue - previous.revenue) / previous.revenue;
+    }
+
+    return {
+      ...current,
+      yoy,
+    };
+  });
+});
+
+const formatJapaneseCurrency = (value: number) => {
+  if (value >= 100_000_000) {
+    const oku = value / 100_000_000;
+    return (Number.isInteger(oku) ? oku : oku.toFixed(1)) + "億ドル";
+  }
+
+  if (value >= 10_000) {
+    const man = value / 10_000;
+    return (Number.isInteger(man) ? man : man.toFixed(1)) + "万ドル";
+  }
+
+  return value.toLocaleString() + "円";
+};
+
 let currentRequestId = 0;
 watch(
   () => props.companyId,
@@ -68,7 +105,7 @@ watch(
         <h1 class="text-2xl font-bold">
           {{ company?.name }}
         </h1>
-        <p class="text-sm text-start">ticker:{{ company?.ticker }}</p>
+        <p class="text-sm text-start">Ticker:{{ company?.ticker }}</p>
       </div>
 
       <!-- スコア -->
@@ -92,8 +129,18 @@ watch(
     <div class="grid grid-cols-5 gap-4">
       <div class="bg-[#1f2020] p-4 rounded">
         <p class="text-xs text-gray-400 text-start">売上収益（直近四半期）</p>
-        <p class="text-lg font-bold text-start">$2.15B</p>
-        <p class="text-green-400 text-xs text-start">+25% YoY</p>
+        <p
+          v-if="groupedRevenueYoY.length > 0"
+          class="text-lg font-bold text-start"
+        >
+          {{ formatJapaneseCurrency(groupedRevenueYoY[0].revenue) }}
+        </p>
+        <p
+          v-if="groupedRevenueYoY.length > 0"
+          class="text-green-400 text-xs text-start"
+        >
+          +{{ Math.round(groupedRevenueYoY[0].yoy * 100 * 100) / 100 }}% YoY
+        </p>
       </div>
 
       <div class="bg-[#1f2020] p-4 rounded">
@@ -136,6 +183,7 @@ watch(
             ></div>
             <p class="text-xs text-gray-400 mt-1">Q{{ n }}</p>
           </div>
+          <div @click="() => console.log(groupedRevenueYoY)">test</div>
         </div>
       </div>
 

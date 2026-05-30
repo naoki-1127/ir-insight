@@ -6,6 +6,14 @@ type Summary = {
   fiscal_period: string;
   revenue: number;
   previous_revenue: number;
+  net_income_gaap: number;
+  previous_net_income_gaap: number;
+  net_income_non_gaap: number;
+  previous_net_income_non_gaap: number;
+  revenue_yoy: number;
+  net_income_yoy: number;
+  margin: number;
+  gap_ratio: number;
 };
 
 const props = defineProps<{
@@ -22,6 +30,7 @@ const summaryLists = [
   { key: "fiscal_period", label: "会計期" },
   { key: "revenue", label: "売上" },
   { key: "previous_revenue", label: "前年同会計期売上" },
+  { key: "revenue_yoy", label: "前年同会計期売上比" },
 ] as const;
 </script>
 
