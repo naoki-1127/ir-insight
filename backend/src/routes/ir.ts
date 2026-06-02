@@ -6,15 +6,11 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { authMiddleware, AuthRequest } from "../middleware/auth.js";
 import fs from "fs/promises";
 import path from "path";
-import { createRequire } from "module";
 import { summarizeIR, summarizeIRText } from "../services/ai.service";
 import {
   get8KPressReleaseHtml2,
   get8KPressReleaseHtml,
 } from "../services/edgar.service.js";
-const require = createRequire(import.meta.url);
-const pdfModule = require("pdf-parse");
-const pdf = pdfModule.default ?? pdfModule;
 const router = express.Router();
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL,
@@ -223,21 +219,30 @@ router.get(
     if (!companyId) {
       return res.status(400).json({ error: "企業情報が取得できませんでした" });
     }
-    const checkDocument = await prisma.document.findFirst({
-      where: { companyId: companyId },
+    const document = await prisma.document.findFirst({
+      where: {
+        companyId,
+      },
       orderBy: [{ fiscalYear: "desc" }, { quarter: "desc" }],
+      include: {
+        contents: {
+          orderBy: {
+            orderIndex: "asc",
+          },
+        },
+      },
     });
-    if (!checkDocument) {
-      return res.status(400).json({ error: "IR情報が取得できませんでした" });
+
+    const contentEn = document?.contents[0]?.contentEn;
+    if (!contentEn) {
+      return res.status(400).json({ error: "8K情報が取得できませんでした" });
     }
-    const dirPath = checkDocument.fileUrl;
-    const fileBuffer = await fs.readFile(dirPath);
-    const data = await pdf(fileBuffer);
-    const result = await summarizeIRText(data.text);
+
+    const result = await summarizeIRText(contentEn);
     res.json({
       ...result,
-      fiscalYear: checkDocument.fiscalYear,
-      quarter: checkDocument.quarter,
+      fiscalYear: document.fiscalYear,
+      quarter: document.fiscalQuarter,
     });
   },
 );

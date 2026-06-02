@@ -35,7 +35,7 @@ const selectCompany = (id: string) => {
       class="mt-8 w-full bg-[#d5c5a9] text-black py-2 rounded text-xs font-bold"
       @click="$emit('upload')"
     >
-      Upload PDF
+      企業検索
     </button>
   </aside>
 </template>
