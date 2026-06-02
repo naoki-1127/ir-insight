@@ -9,6 +9,8 @@ import cookieParser from "cookie-parser";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import irRoutes from "./routes/ir.js";
+import companiesRouter from "./routes/company.js";
+import "./queues/earningsWorker";
 
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL,
@@ -28,6 +30,7 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 app.use("/ir", irRoutes);
+app.use("/api/companies", companiesRouter);
 
 const generateTokens = (userId: string) => {
   const accessToken = jwt.sign({ userId }, SECRET, {
