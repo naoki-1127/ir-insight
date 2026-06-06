@@ -1,28 +1,6 @@
 version: "3.9"
 
 services:
-  db:
-    image: postgres:15
-    container_name: postgres_ir
-    restart: always
-    environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: app_db
-    ports:
-      - "5432:5432"
-    volumes:
-      - db_data:/var/lib/postgresql/data
-
-  redis:
-    image: redis:7-alpine
-    container_name: redis_ir
-    restart: always
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-
   backend:
     build: ./backend
     container_name: express_ir
@@ -31,13 +9,10 @@ services:
     volumes:
       - ./backend:/app
       - /app/node_modules
-    depends_on:
-      - db
-      - redis
     environment:
-      DATABASE_URL: postgres://user:password@db:5432/app_db
-      REDIS_HOST: redis
-      REDIS_PORT: "6379"
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
 
   batch:
     build: ./batch
@@ -45,8 +20,8 @@ services:
     depends_on:
       - backend
     environment:
-      BACKEND_URL: http://backend:3000
-      CRON_SCHEDULE: "* * * * *"
+      BACKEND_URL: ${BACKEND_URL}
+      CRON_SCHEDULE: ${CRON_SCHEDULE}
 
   frontend:
     build: ./frontend
@@ -58,7 +33,3 @@ services:
       - /app/node_modules
     stdin_open: true
     tty: true
-
-volumes:
-  db_data:
-  redis_data:

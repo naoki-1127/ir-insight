@@ -1,0 +1,13 @@
+version: "3.9"
+
+services:
+  backend:
+    restart: always
+    volumes: [] # 本番はボリュームマウント不要
+
+  batch:
+    restart: always
+
+  frontend:
+    restart: always
+    volumes: []

@@ -202,3 +202,10 @@ Earnings -
 **「成長率」と「事業構造」を一瞬で理解できる体験を提供する。**
 
 👉 投資判断のスピードを上げるためのツール
+
+## 起動コマンド
+
+- ローカル
+  `docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env.local up`
+- 本番
+  `docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up -d`
