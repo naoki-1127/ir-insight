@@ -48,7 +48,6 @@ export const useAuthStore = defineStore("auth", {
     },
     async logout() {
       try {
-        //console.log("test: " + localStorage.getItem("refreshToken"));
         // 👇 サーバーに通知（refreshToken削除）
         await axios.post(
           "http://localhost:3000/logout",

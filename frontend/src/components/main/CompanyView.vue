@@ -20,7 +20,6 @@ type Summary = {
 const emit = defineEmits(["deleteCompany"]);
 
 const deleteCompany = (companyId: any) => {
-  console.log("b");
   emit("deleteCompany", companyId);
 };
 

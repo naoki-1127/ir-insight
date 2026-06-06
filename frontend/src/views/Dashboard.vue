@@ -36,7 +36,6 @@ const openUpload = () => {
 
 const deleteCompany = async (companyId: string) => {
   if (!companyId) return;
-  console.log("a");
   try {
     await api.delete(`/api/companies/${companyId}`);
     await getCompanies(); // 一覧を再取得
