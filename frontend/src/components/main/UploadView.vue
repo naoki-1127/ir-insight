@@ -7,7 +7,7 @@ interface Company {
   name: string;
 }
 
-const emit = defineEmits(["companySelected", "upload"]);
+const emit = defineEmits(["companySelected"]);
 
 const handleCompanySelected = (company: Company) => {
   emit("companySelected", company);
