@@ -242,7 +242,7 @@ router.get(
     res.json({
       ...result,
       fiscalYear: document.fiscalYear,
-      quarter: document.fiscalQuarter,
+      quarter: document.quarter,
     });
   },
 );

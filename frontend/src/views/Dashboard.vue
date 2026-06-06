@@ -34,6 +34,20 @@ const openUpload = () => {
   currentView.value = "upload";
 };
 
+const deleteCompany = async (companyId: string) => {
+  if (!companyId) return;
+  console.log("a");
+  try {
+    await api.delete(`/api/companies/${companyId}`);
+    await getCompanies(); // 一覧を再取得
+    selectedCompanyId.value = "";
+    currentView.value = "upload";
+  } catch (err: any) {
+    console.error(err);
+    // 必要なら alert やトースト
+  }
+};
+
 const getCompanies = async () => {
   try {
     const res = await api.get("/ir/companies");
@@ -57,11 +71,15 @@ const getCompanies = async () => {
       />
       <!-- Main Content -->
       <main class="flex-1 flex p-6">
-        <UploadView v-if="currentView === 'upload'" />
+        <UploadView
+          v-if="currentView === 'upload'"
+          @company-selected="getCompanies"
+        />
         <CompanyView
           v-else-if="currentView === 'company'"
           :company-id="selectedCompanyId"
           :companies="companies"
+          @delete-company="deleteCompany"
         />
       </main>
     </div>

@@ -37,7 +37,16 @@ services:
     environment:
       DATABASE_URL: postgres://user:password@db:5432/app_db
       REDIS_HOST: redis
-      REDIS_PORT: 6379
+      REDIS_PORT: "6379"
+
+  batch:
+    build: ./batch
+    container_name: batch_ir
+    depends_on:
+      - backend
+    environment:
+      BACKEND_URL: http://backend:3000
+      CRON_SCHEDULE: "* * * * *"
 
   frontend:
     build: ./frontend

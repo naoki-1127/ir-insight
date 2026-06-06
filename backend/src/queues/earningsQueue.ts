@@ -1,8 +1,6 @@
 import { Queue } from "bullmq";
+import { redis } from "../lib/redis.js";
 
-const connection = {
-  host: process.env.REDIS_HOST ?? "localhost",
-  port: Number(process.env.REDIS_PORT ?? 6379),
-};
+const connection = redis;
 
 export const earningsQueue = new Queue("earnings", { connection });

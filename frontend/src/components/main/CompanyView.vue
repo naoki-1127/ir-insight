@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, watch, ref } from "vue";
 import api from "../../api/axios";
-import { CircleCheck, TriangleAlert } from "@lucide/vue";
+import { CircleCheck, TriangleAlert, Trash2 } from "@lucide/vue";
 
 type Company = {
   id: string;
@@ -15,6 +15,13 @@ type Summary = {
   summaries: any[];
   fiscalYear: number;
   quarter: number;
+};
+
+const emit = defineEmits(["deleteCompany"]);
+
+const deleteCompany = (companyId: any) => {
+  console.log("b");
+  emit("deleteCompany", companyId);
 };
 
 const summaryText = ref<Summary | null>(null);
@@ -102,9 +109,15 @@ watch(
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div class="flex flex-col">
-        <h1 class="text-2xl font-bold">
-          {{ company?.name }}
-        </h1>
+        <div class="flex items-center gap-2">
+          <h1 class="text-2xl font-bold">
+            {{ company?.name }}
+          </h1>
+          <Trash2
+            class="w-5 h-5 shrink-0 text-gray-400 hover:text-red-400 cursor-pointer"
+            @click="deleteCompany(company?.id)"
+          />
+        </div>
         <p class="text-sm text-start">Ticker:{{ company?.ticker }}</p>
       </div>
 
@@ -183,7 +196,6 @@ watch(
             ></div>
             <p class="text-xs text-gray-400 mt-1">Q{{ n }}</p>
           </div>
-          <div @click="() => console.log(groupedRevenueYoY)">test</div>
         </div>
       </div>
 

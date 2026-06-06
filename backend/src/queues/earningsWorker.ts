@@ -17,7 +17,7 @@ const connection = {
 export const earningsWorker = new Worker(
   "earnings",
   async (job) => {
-    const { cik, accessionNumber, filingDate, primaryDocument } = job.data;
+    const { cik, accessionNumber, primaryDocument } = job.data;
 
     console.log(`[worker] processing: ${accessionNumber}`);
 
