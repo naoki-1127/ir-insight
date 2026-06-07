@@ -1,9 +1,30 @@
 version: "3.9"
 
 services:
+  db:
+    image: postgres:15
+    container_name: postgres_ir
+    restart: always
+    environment:
+      POSTGRES_USER: iradmin
+      POSTGRES_PASSWORD: { パスワード }
+      POSTGRES_DB: app_db
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis_ir
+    restart: always
+    volumes:
+      - redis_data:/data
+
   backend:
     restart: always
-    volumes: [] # 本番はボリュームマウント不要
+    volumes: []
+    depends_on:
+      - db
+      - redis
 
   batch:
     restart: always
@@ -11,3 +32,7 @@ services:
   frontend:
     restart: always
     volumes: []
+
+volumes:
+  db_data:
+  redis_data:

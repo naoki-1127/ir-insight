@@ -73,11 +73,6 @@ const handleAdd = async () => {
 
 <template>
   <div class="w-full">
-    <div class="text-center mb-8">
-      <h2 class="text-2xl font-medium mb-2">銘柄を追加</h2>
-      <p class="text-gray-400 text-sm">会社名またはティッカーで検索</p>
-    </div>
-
     <!-- 検索インプット -->
     <div class="relative mb-2">
       <i
