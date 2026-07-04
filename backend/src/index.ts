@@ -22,7 +22,7 @@ const SECRET = process.env.JWT_SECRET || "secret-key";
 const app = express();
 app.use(
   cors({
-    origin: "http://localhost:5173", // Vue の開発サーバーの URL
+    origin: "https://localhost:5173", // Vue の開発サーバーの URL
     credentials: true, // Cookie を使う場合
   }),
 );
