@@ -56,11 +56,13 @@ const getCompanies = async () => {
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col bg-[#0e0e0e] text-gray-200">
+  <div
+    class="overflow-hidden h-screen flex flex-col bg-[#0e0e0e] text-gray-200"
+  >
     <!-- Header -->
-    <Header />
+    <Header class="shrink-0" />
     <!-- Main Layout -->
-    <div class="flex flex-1">
+    <div class="flex flex-1 min-h-0">
       <!-- Sidebar -->
       <Sidebar
         :companies="companies"
@@ -69,7 +71,7 @@ const getCompanies = async () => {
         @upload="openUpload"
       />
       <!-- Main Content -->
-      <main class="flex-1 flex p-6">
+      <main class="flex-1 min-h-0 overflow-y-auto p-6">
         <UploadView
           v-if="currentView === 'upload'"
           @company-selected="getCompanies"

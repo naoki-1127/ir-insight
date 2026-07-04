@@ -12,10 +12,19 @@ const selectCompany = (id: string) => {
 </script>
 
 <template>
-  <aside class="w-64 bg-[#131313] border-r border-gray-800 p-6">
-    <div class="text-[#d5c5a9] font-bold mb-6">Library</div>
+  <aside
+    class="w-64 shrink-0 flex flex-col overflow-hidden bg-[#131313] border-r border-gray-800"
+  >
+    <div class="p-6 pb-0 shrink-0">
+      <button
+        class="w-full bg-[#d5c5a9] text-black py-2 rounded text-xs font-bold"
+        @click="$emit('upload')"
+      >
+        企業検索
+      </button>
+    </div>
 
-    <nav class="space-y-2 text-sm">
+    <nav class="flex-1 overflow-y-auto p-6 space-y-2 text-sm">
       <div
         v-for="company in companies"
         :key="company.id"
@@ -30,12 +39,5 @@ const selectCompany = (id: string) => {
         {{ company.name }}
       </div>
     </nav>
-
-    <button
-      class="mt-8 w-full bg-[#d5c5a9] text-black py-2 rounded text-xs font-bold"
-      @click="$emit('upload')"
-    >
-      企業検索
-    </button>
   </aside>
 </template>

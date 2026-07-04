@@ -149,6 +149,7 @@ export const summarizeIRText = async (text: string): Promise<IRSummaryText> => {
 
 # summariesのルール（重要）
 - 最大3件
+- 日本語で翻訳する
 - 各要約は1文で簡潔に
 - 各要約は異なる観点にする：
   1つ目：成長（売上・ガイダンス）
