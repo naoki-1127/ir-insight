@@ -151,7 +151,11 @@ watch(
           v-if="groupedRevenueYoY.length > 0"
           class="text-green-400 text-xs text-start"
         >
-          +{{ Math.round(groupedRevenueYoY[0].yoy * 100 * 100) / 100 }}% YoY
+          {{
+            Math.round(groupedRevenueYoY[0].yoy * 100 * 100) / 100 >= 0
+              ? "+"
+              : ""
+          }}{{ Math.round(groupedRevenueYoY[0].yoy * 100 * 100) / 100 }}% YoY
         </p>
       </div>
 
