@@ -1,4 +1,5 @@
 import cron from "node-cron";
+import "dotenv/config";
 
 const schedule = process.env.CRON_SCHEDULE ?? "0 6 * * *";
 const backendUrl = process.env.BACKEND_URL ?? "http://backend:3000";
@@ -10,6 +11,9 @@ cron.schedule(schedule, async () => {
   try {
     const res = await fetch(`${backendUrl}/api/companies/check-all`, {
       method: "POST",
+      headers: {
+        "x-batch-secret": process.env.BATCH_SECRET ?? "",
+      },
     });
     const data = await res.json();
     console.log(`[batch] done:`, data);

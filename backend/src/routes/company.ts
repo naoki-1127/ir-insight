@@ -55,8 +55,12 @@ router.delete(
   },
 );
 
-router.post("/check-all", async (_req, res) => {
+router.post("/check-all", async (req, res) => {
   try {
+    const secret = process.env.BATCH_SECRET;
+    if (!secret || req.headers["x-batch-secret"] !== secret) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
     const result = await checkAllCompaniesForNew8K();
     res.json(result);
   } catch (err) {

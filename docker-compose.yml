@@ -38,11 +38,15 @@ services:
   batch:
     build: ./batch
     container_name: batch_ir
+    volumes:
+      - ./batch:/app
+      - /app/node_modules
     depends_on:
       - backend
     environment:
       BACKEND_URL: ${BACKEND_URL}
       CRON_SCHEDULE: ${CRON_SCHEDULE}
+      BATCH_SECRET: ${BATCH_SECRET}
 
   frontend:
     build: ./frontend
