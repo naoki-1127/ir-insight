@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { prisma } from "../lib/prisma.js";
 import { authMiddleware } from "../middleware/auth.js";
 import { Request } from "express";
 import {
@@ -8,8 +7,10 @@ import {
   deleteCompany,
   NotFoundError,
 } from "../services/company.service.js";
-import { enqueue8KJobs } from "../services/earnings.service.js";
-import { earningsQueue } from "../queues/earningsQueue.js";
+import {
+  enqueue8KJobs,
+  checkAllCompaniesForNew8K,
+} from "../services/earnings.service.js";
 
 const router = Router();
 
@@ -26,7 +27,7 @@ router.post("/", authMiddleware, async (req, res) => {
   if (!cik || !ticker || !name) {
     return res.status(400).json({ error: "cik, ticker, name は必須です" });
   }
-  const company = registerCompany(cik, ticker, name);
+  const company = await registerCompany(cik, ticker, name);
   enqueue8KJobs(cik).catch((e) =>
     console.error(`[enqueue] failed: ${e.message}`),
   );
@@ -38,78 +39,30 @@ router.delete(
   authMiddleware,
   async (req: Request<{ id: string }>, res: any) => {
     try {
-      if (!req.params) {
-        res.json({ success: false });
-      }
       const { id } = req.params;
+      if (!id) {
+        return res.status(400).json({ success: false });
+      }
       await deleteCompany(id);
       res.json({ success: true });
     } catch (err) {
       if (err instanceof NotFoundError) {
         return res.status(404).json({ error: err.message });
       }
+      console.error(err);
+      res.status(500).json({ error: "サーバーエラー" });
     }
   },
 );
 
 router.post("/check-all", async (_req, res) => {
-  const companies = await prisma.company.findMany();
-  console.log(`[check-all] checking ${companies.length} companies`);
-
-  let enqueued = 0;
-
-  for (const company of companies) {
-    try {
-      const secRes = await fetch(
-        `https://data.sec.gov/submissions/${company.id}.json`,
-      );
-      if (!secRes.ok) continue;
-      const data = await secRes.json();
-      const recent = data.filings.recent;
-
-      // item 2.02 の8-Kを直近1件だけ取得
-      let latestFiling = null;
-      for (let i = 0; i < recent.form.length; i++) {
-        if (recent.form[i] === "8-K" && recent.items[i]?.includes("2.02")) {
-          latestFiling = {
-            accessionNumber: recent.accessionNumber[i],
-            filingDate: recent.filingDate[i],
-            primaryDocument: recent.primaryDocument[i],
-          };
-          break; // 最初に見つかったもの（=直近）だけ使う
-        }
-      }
-
-      if (!latestFiling) continue;
-
-      // DBに既存かチェック
-      const exists = await prisma.document.findFirst({
-        where: { title: latestFiling.accessionNumber },
-      });
-      if (exists) {
-        console.log(
-          `[check-all] skip: ${company.ticker} ${latestFiling.accessionNumber}`,
-        );
-        continue;
-      }
-
-      // 新着をキューに積む
-      await earningsQueue.add("process-8k", {
-        cik: company.id,
-        ticker: company.ticker,
-        ...latestFiling,
-      });
-
-      enqueued++;
-      console.log(
-        `[check-all] enqueued: ${company.ticker} ${latestFiling.accessionNumber}`,
-      );
-    } catch (e: any) {
-      console.error(`[check-all] error: ${company.ticker} ${e.message}`);
-    }
+  try {
+    const result = await checkAllCompaniesForNew8K();
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "サーバーエラー" });
   }
-
-  res.json({ checked: companies.length, enqueued });
 });
 
 export default router;
