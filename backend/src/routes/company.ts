@@ -1,16 +1,19 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
-import { authMiddleware, AuthRequest } from "../middleware/auth.js";
+import { authMiddleware } from "../middleware/auth.js";
+import { Request } from "express";
 import {
   searchCompanies,
   registerCompany,
+  deleteCompany,
+  NotFoundError,
 } from "../services/company.service.js";
 import { enqueue8KJobs } from "../services/earnings.service.js";
 import { earningsQueue } from "../queues/earningsQueue.js";
 
 const router = Router();
 
-router.get("/search", async (req, res) => {
+router.get("/search", authMiddleware, async (req, res) => {
   const q = String(req.query.q ?? "").trim();
   if (!q) return res.json([]);
   const results = await searchCompanies(q);
@@ -23,48 +26,31 @@ router.post("/", authMiddleware, async (req, res) => {
   if (!cik || !ticker || !name) {
     return res.status(400).json({ error: "cik, ticker, name は必須です" });
   }
-
   const company = registerCompany(cik, ticker, name);
-
   enqueue8KJobs(cik).catch((e) =>
     console.error(`[enqueue] failed: ${e.message}`),
   );
-
   res.json({ company });
 });
 
-router.delete("/:id", authMiddleware, async (req: AuthRequest, res: any) => {
-  const { id } = req.params;
-  const document = await prisma.$transaction([
-    prisma.documentContent.deleteMany({
-      where: {
-        document: {
-          companyId: id,
-        },
-      },
-    }),
-    prisma.document.deleteMany({
-      where: {
-        companyId: id,
-      },
-    }),
-
-    prisma.financial.deleteMany({
-      where: {
-        companyId: id,
-      },
-    }),
-
-    prisma.company.delete({
-      where: {
-        id,
-      },
-    }),
-  ]);
-
-  if (document.count === 0) return res.status(404).json({ error: "Not found" });
-  res.json({ success: true });
-});
+router.delete(
+  "/:id",
+  authMiddleware,
+  async (req: Request<{ id: string }>, res: any) => {
+    try {
+      if (!req.params) {
+        res.json({ success: false });
+      }
+      const { id } = req.params;
+      await deleteCompany(id);
+      res.json({ success: true });
+    } catch (err) {
+      if (err instanceof NotFoundError) {
+        return res.status(404).json({ error: err.message });
+      }
+    }
+  },
+);
 
 router.post("/check-all", async (_req, res) => {
   const companies = await prisma.company.findMany();

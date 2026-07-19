@@ -11,19 +11,21 @@ import {
 
 const router = Router();
 
+const refreshCookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "lax" as const,
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+};
+
 router.post("/register", async (req, res) => {
   try {
     const { email, password } = req.body;
     const newUser = await registerUser(email, password);
     // JWT 生成して返す（登録直後に自動ログイン）
-    const { accessToken, refreshToken } = generateTokens(newUser.id);
+    const { accessToken, refreshToken } = await generateTokens(newUser.id);
     res
-      .cookie("refreshToken", refreshToken, {
-        httpOnly: true,
-        secure: false,
-        sameSite: "lax",
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      })
+      .cookie("refreshToken", refreshToken, refreshCookieOptions)
       .json({ accessToken });
   } catch (err) {
     if (err instanceof ConflictError) {
@@ -41,21 +43,9 @@ router.post("/login", async (req, res) => {
     if (!email || !password)
       return res.status(400).json({ error: "emailとpasswordは必須" });
     const user = await loginUser(email, password);
-    const { accessToken, refreshToken } = generateTokens(user.id);
-    await prisma.refreshToken.create({
-      data: {
-        token: refreshToken,
-        userId: user.id,
-        expiredAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7日
-      },
-    });
+    const { accessToken, refreshToken } = await generateTokens(user.id);
     res
-      .cookie("refreshToken", refreshToken, {
-        httpOnly: true,
-        secure: false,
-        sameSite: "lax",
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      })
+      .cookie("refreshToken", refreshToken, refreshCookieOptions)
       .json({ accessToken });
   } catch (err) {
     if (err instanceof AuthenticateError) {
@@ -87,14 +77,14 @@ router.post("/refresh", async (req, res) => {
   res.json({ accessToken: newAccessToken });
 });
 
-router.get("/", async (_req, res) => {
-  const result = await prisma.$queryRaw`SELECT * FROM now()`;
-  res.json(result); // .rows は pg の Pool 用。$queryRaw は配列をそのまま返す
-});
+//router.get("/", async (_req, res) => {
+//  const result = await prisma.$queryRaw`SELECT * FROM now()`;
+//  res.json(result); // .rows は pg の Pool 用。$queryRaw は配列をそのまま返す
+//});
 
-router.get("/do", async (_req, res) => {
-  const result = await prisma.$queryRaw`SELECT * FROM User`;
-  res.json(result); // .rows は pg の Pool 用。$queryRaw は配列をそのまま返す
-});
+//router.get("/do", async (_req, res) => {
+//  const result = await prisma.$queryRaw`SELECT * FROM User`;
+//  res.json(result); // .rows は pg の Pool 用。$queryRaw は配列をそのまま返す
+//});
 
 export default router;

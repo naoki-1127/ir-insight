@@ -2,6 +2,7 @@ import { prisma } from "../lib/prisma.js";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
+import { create } from "domain";
 
 const SECRET = process.env.JWT_SECRET || "secret-key";
 
@@ -14,12 +15,23 @@ const getUser = async (email: string) =>
     where: { email: email },
   });
 
+const createRefreshToken = async (userId: string, refreshToken: string) => {
+  await prisma.refreshToken.create({
+    data: {
+      token: refreshToken,
+      userId: userId,
+      expiredAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7日
+    },
+  });
+};
+
 export const generateAccessToken = (userId: string) =>
   jwt.sign({ userId }, SECRET, { expiresIn: "15m" });
 
-export const generateTokens = (userId: string) => {
+export const generateTokens = async (userId: string) => {
   const accessToken = generateAccessToken(userId);
   const refreshToken = crypto.randomBytes(32).toString("hex");
+  await createRefreshToken(userId, refreshToken);
   return { accessToken, refreshToken };
 };
 
@@ -28,7 +40,7 @@ export const registerUser = async (email: string, password: string) => {
   if (checkUser) {
     throw new ConflictError(`${email} はすでに登録されています`);
   }
-  const hashedPassword = hashPassword(password);
+  const hashedPassword = await hashPassword(password);
   const newUser = prisma.user.create({
     data: {
       email: email,

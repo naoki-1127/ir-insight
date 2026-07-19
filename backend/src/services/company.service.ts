@@ -60,3 +60,64 @@ export const registerCompany = async (
   });
   return company;
 };
+
+export const getCompaniesWithDocument = async () => {
+  const data = await prisma.company.findMany({
+    include: {
+      documents: {
+        orderBy: [
+          {
+            fiscalYear: "desc",
+          },
+          {
+            quarter: "desc",
+          },
+        ],
+        include: {
+          financials: true,
+        },
+      },
+    },
+  });
+  return data;
+};
+
+export const deleteCompany = async (id: string) => {
+  const company = await prisma.company.findUnique({ where: { id } });
+  if (!company) {
+    throw new NotFoundError("Not found");
+  }
+  const document = await prisma.$transaction([
+    prisma.documentContent.deleteMany({
+      where: {
+        document: {
+          companyId: id,
+        },
+      },
+    }),
+    prisma.document.deleteMany({
+      where: {
+        companyId: id,
+      },
+    }),
+    prisma.financial.deleteMany({
+      where: {
+        companyId: id,
+      },
+    }),
+    prisma.company.delete({
+      where: {
+        id,
+      },
+    }),
+  ]);
+  if (document.count === 0) {
+    throw new NotFoundError("Not found");
+  }
+};
+export class NotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NotFoundError";
+  }
+}

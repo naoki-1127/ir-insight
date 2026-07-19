@@ -28,7 +28,6 @@ export const earningsWorker = new Worker(
     const { ex991Html, ex991Url } = await get8KPressReleaseHtml(
       cik,
       accessionNumber,
-      primaryDocument,
     );
     const $ = cheerio.load(ex991Html);
     const text = $("body").text().replace(/\s+/g, " ").trim();
