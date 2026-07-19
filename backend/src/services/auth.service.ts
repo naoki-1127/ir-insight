@@ -35,13 +35,31 @@ export const generateTokens = async (userId: string) => {
   return { accessToken, refreshToken };
 };
 
+export const getRefreshToken = async (refreshToken: string) => {
+  const stored = await prisma.refreshToken.findUnique({
+    where: { token: refreshToken },
+  });
+  if (!stored) {
+    throw new AuthenticateError(`invalid`);
+  }
+  if (stored.expiredAt < new Date()) {
+    throw new AuthenticateError(`Expired`);
+  }
+  return stored;
+};
+
+export const deleteRefreshToken = async (refreshToken: string) => {
+  await prisma.refreshToken.deleteMany({
+    where: { token: refreshToken },
+  });
+};
 export const registerUser = async (email: string, password: string) => {
   const checkUser = await getUser(email);
   if (checkUser) {
     throw new ConflictError(`${email} はすでに登録されています`);
   }
   const hashedPassword = await hashPassword(password);
-  const newUser = prisma.user.create({
+  const newUser = await prisma.user.create({
     data: {
       email: email,
       password: hashedPassword,
