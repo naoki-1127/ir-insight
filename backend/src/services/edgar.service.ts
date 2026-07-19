@@ -1,5 +1,5 @@
 import * as cheerio from "cheerio";
-import { summarizeIR, summarizeIRText } from "./ai.service.js";
+import { summarizeIRText } from "./ai.service.js";
 
 export const get8K = async (cik: string) => {
   console.log(cik);

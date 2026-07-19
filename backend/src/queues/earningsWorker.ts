@@ -1,18 +1,9 @@
 import { Worker } from "bullmq";
-import { get8KPressReleaseHtml } from "../services/edgar.service";
+import { get8KPressReleaseHtml } from "../services/edgar.service.js";
 import { summarizeIR } from "../services/ai.service.js";
 import * as cheerio from "cheerio";
-import { PrismaClient } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
-const adapter = new PrismaPg({
-  connectionString: process.env.DATABASE_URL,
-});
-const prisma = new PrismaClient({ adapter });
-
-const connection = {
-  host: process.env.REDIS_HOST ?? "localhost",
-  port: Number(process.env.REDIS_PORT ?? 6379),
-};
+import { prisma } from "../lib/prisma.js";
+import { redis } from "../lib/redis.js";
 
 export const earningsWorker = new Worker(
   "earnings",
@@ -90,7 +81,7 @@ export const earningsWorker = new Worker(
     console.log(`[worker] done: ${accessionNumber}`);
   },
   {
-    connection,
+    connection: redis,
     concurrency: 1, // OpenAIのレートリミット対策で直列処理
   },
 );

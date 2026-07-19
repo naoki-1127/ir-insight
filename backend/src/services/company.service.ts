@@ -1,4 +1,5 @@
-import { redis } from "../lib/redis";
+import { redis } from "../lib/redis.js";
+import { prisma } from "../lib/prisma.js";
 
 const TICKER_MAP_KEY = "ticker_map";
 const TICKER_MAP_TTL = 86400; // 24時間
@@ -39,4 +40,23 @@ export const searchCompanies = async (query: string) => {
       ticker: e.ticker,
       name: e.title,
     }));
+};
+
+// Companyテーブルに登録（既存の場合はスキップ）
+export const registerCompany = async (
+  cik: string,
+  ticker: string,
+  name: string,
+) => {
+  const company = await prisma.company.upsert({
+    where: { ticker },
+    update: {},
+    create: {
+      id: cik,
+      ticker,
+      name,
+      market: "US",
+    },
+  });
+  return company;
 };

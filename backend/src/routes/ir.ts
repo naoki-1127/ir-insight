@@ -1,20 +1,16 @@
 // src/routes/todo.ts
-import express from "express";
-import multer from "multer";
-import { PrismaClient } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
+import { Router } from "express";
+import { prisma } from "../lib/prisma.js";
 import { authMiddleware, AuthRequest } from "../middleware/auth.js";
+import multer from "multer";
 import fs from "fs/promises";
 import path from "path";
-import { summarizeIR, summarizeIRText } from "../services/ai.service";
+import { summarizeIR, summarizeIRText } from "../services/ai.service.js";
 import {
   get8KPressReleaseHtml2,
   get8KPressReleaseHtml,
 } from "../services/edgar.service.js";
-const router = express.Router();
-const adapter = new PrismaPg({
-  connectionString: process.env.DATABASE_URL,
-});
+const router = Router();
 
 type CreateCompanyReq = {
   ticker: string;
@@ -34,7 +30,6 @@ type ErrorResponse = {
 };
 type CompanyRes = CreateCompanySuccessRes | ErrorResponse;
 
-const prisma = new PrismaClient({ adapter });
 const storage = multer.diskStorage({
   destination: async (req: AuthRequest, _file: any, cb: any) => {
     const userId = req.userId; // 認証済み前提
@@ -332,21 +327,6 @@ router.post(
     }
   },
 );
-
-// Document 更新
-router.put("/:id", authMiddleware, async (req: AuthRequest, res: any) => {
-  const { id } = req.params;
-  const { title, completed } = req.body;
-
-  const todo = await prisma.todo.updateMany({
-    where: { id: Number(id), userId: req.userId },
-    data: { title, completed },
-  });
-
-  if (todo.count === 0) return res.status(404).json({ error: "Not found" });
-
-  res.json({ success: true });
-});
 
 // Document 削除
 router.delete(

@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 
 const SECRET = process.env.JWT_SECRET || "secret-key";
 
-type AuthRequest<T = any> = Request<{}, {}, T> & {
+export type AuthRequest<T = any> = Request<{}, {}, T> & {
   userId?: string;
 };
 
