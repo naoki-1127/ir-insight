@@ -6,11 +6,10 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
   plugins: [vue(), tailwindcss()],
   server: {
-    hmr: process.env.NODE_ENV === "production" ? false : true,
+    hmr: {
+      clientPort: 443,
+    },
     host: true,
-    //https: {
-    //  key: fs.readFileSync("./192.168.0.6-key.pem"),
-    //  cert: fs.readFileSync("./192.168.0.6.pem"),
-    //},
+    allowedHosts: ["eliminate-gibberish-sponge.ngrok-free.dev"],
   },
 });

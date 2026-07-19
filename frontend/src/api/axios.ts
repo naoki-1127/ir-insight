@@ -4,7 +4,7 @@ import { useAuthStore } from "../stores/auth";
 import router from "../router";
 
 const api = axios.create({
-  baseURL: "http://localhost:3000",
+  baseURL: import.meta.env.VITE_API_BASE_URL,
 });
 
 api.interceptors.request.use((config) => {
@@ -26,7 +26,7 @@ api.interceptors.response.use(
 
       try {
         const res = await axios.post(
-          "http://localhost:3000/refresh",
+          `${import.meta.env.VITE_API_BASE_URL}/refresh`,
           {},
           {
             withCredentials: true,

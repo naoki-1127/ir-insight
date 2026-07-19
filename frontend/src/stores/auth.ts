@@ -13,7 +13,7 @@ export const useAuthStore = defineStore("auth", {
   actions: {
     async register(email: string, password: string) {
       const res = await axios.post(
-        "http://localhost:3000/register",
+        `${import.meta.env.VITE_API_BASE_URL}/register`,
         {
           email,
           password,
@@ -25,7 +25,7 @@ export const useAuthStore = defineStore("auth", {
     },
     async login(email: string, password: string) {
       const res = await axios.post(
-        "http://localhost:3000/login",
+        `${import.meta.env.VITE_API_BASE_URL}/login`,
         {
           email,
           password,
@@ -50,7 +50,7 @@ export const useAuthStore = defineStore("auth", {
       try {
         // 👇 サーバーに通知（refreshToken削除）
         await axios.post(
-          "http://localhost:3000/logout",
+          `${import.meta.env.VITE_API_BASE_URL}/logout`,
           {
             refreshToken: localStorage.getItem("refreshToken"),
           },
