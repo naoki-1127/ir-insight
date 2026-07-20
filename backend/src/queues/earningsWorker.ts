@@ -8,7 +8,7 @@ import { redis } from "../lib/redis.js";
 export const earningsWorker = new Worker(
   "earnings",
   async (job) => {
-    const { cik, accessionNumber, primaryDocument } = job.data;
+    const { cik, accessionNumber } = job.data;
 
     console.log(`[worker] processing: ${accessionNumber}`);
 

@@ -15,12 +15,10 @@ router.get("/", authMiddleware, async (req: AuthRequest, res: any) => {
   const userId = req.userId;
   const dirPath = path.join(process.cwd(), "uploads", `user_${userId}`);
   const files = await fs.readdir(dirPath);
-
   const fileList = files.map((file) => ({
     name: file,
     path: path.join(dirPath, file),
   }));
-
   res.json(fileList);
 });
 

@@ -5,9 +5,16 @@ const openai = new OpenAI({
 });
 
 type IRSummary = {
-  company_name: string | null;
-  fiscal_period: string | null;
+  title: string;
+  company_name: string;
+  ticker: string;
+  fiscal_period: string;
   revenue: number | null;
+  previous_revenue: number | null;
+  net_income_non_gaap: number | null;
+  net_income_gaap: number | null;
+  previous_net_income_non_gaap: number | null;
+  previous_net_income_gaap: number | null;
 };
 
 type IRSummaryText = {
@@ -26,6 +33,23 @@ type IRData = {
   net_income_gaap: number;
   previous_net_income_non_gaap: number;
   previous_net_income_gaap: number;
+};
+
+const calcMetrics = (data: IRData) => {
+  const revenue_yoy =
+    (data.revenue - data.previous_revenue) / data.previous_revenue;
+  const net_income_yoy =
+    (data.net_income_non_gaap - data.previous_net_income_non_gaap) /
+    data.previous_net_income_non_gaap;
+  const margin = data.net_income_non_gaap / data.revenue;
+  const gap = data.net_income_non_gaap - data.net_income_gaap;
+  const gap_ratio = gap / data.net_income_non_gaap;
+  return {
+    revenue_yoy,
+    net_income_yoy,
+    margin,
+    gap_ratio,
+  };
 };
 
 export const summarizeIR = async (text: string): Promise<IRSummary> => {
@@ -57,7 +81,7 @@ export const summarizeIR = async (text: string): Promise<IRSummary> => {
 
 例:
 {
-  "title": "第4Qの決算報告"
+  "title": "第4Qの決算報告",
   "company_name": "Palo Alto Networks",
   "ticker": "PANW",
   "fiscal_period": "FY2026 Q2",
@@ -74,7 +98,6 @@ export const summarizeIR = async (text: string): Promise<IRSummary> => {
 ${text.slice(0, 8000)}
 """
 `;
-
   const res = await openai.chat.completions.create({
     model: "gpt-5.4-mini",
     messages: [
@@ -84,40 +107,16 @@ ${text.slice(0, 8000)}
       },
     ],
   });
-
   let content = res.choices[0].message.content ?? "";
-  let jsonContent = JSON.parse(content);
-  let metrics = calcMetrics(jsonContent);
-  jsonContent = { ...jsonContent, ...metrics };
-
   try {
+    let jsonContent = JSON.parse(content);
+    let metrics = calcMetrics(jsonContent);
+    jsonContent = { ...jsonContent, ...metrics };
     return jsonContent;
   } catch (e) {
     console.error("JSON parse error:", content);
     throw new Error("AIレスポンスのパースに失敗");
   }
-};
-
-const calcMetrics = (data: IRData) => {
-  const revenue_yoy =
-    (data.revenue - data.previous_revenue) / data.previous_revenue;
-
-  const net_income_yoy =
-    (data.net_income_non_gaap - data.previous_net_income_non_gaap) /
-    data.previous_net_income_non_gaap;
-
-  const margin = data.net_income_non_gaap / data.revenue;
-
-  const gap = data.net_income_non_gaap - data.net_income_gaap;
-
-  const gap_ratio = gap / data.net_income_non_gaap;
-
-  return {
-    revenue_yoy,
-    net_income_yoy,
-    margin,
-    gap_ratio,
-  };
 };
 
 export const summarizeIRText = async (text: string): Promise<IRSummaryText> => {
