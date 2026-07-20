@@ -6,7 +6,10 @@ import { Request } from "express";
 import fs from "fs/promises";
 import path from "path";
 import { summarizeIRText } from "../services/ai.service.js";
-import { getCompaniesWithDocument } from "../services/company.service.js";
+import {
+  getCompaniesWithDocument,
+  getDocumentContent,
+} from "../services/company.service.js";
 
 const router = Router();
 
@@ -27,6 +30,19 @@ router.get("/companies", authMiddleware, async (_req, res: any) => {
   const data = await getCompaniesWithDocument();
   return res.json(data);
 });
+
+router.get(
+  "/detail/:documentId",
+  authMiddleware,
+  async (req: Request<{ documentId: string }>, res: any) => {
+    const { documentId } = req.params;
+    if (!documentId) {
+      return res.status(400).json({ error: "記事情報が取得できませんでした" });
+    }
+    const document = await getDocumentContent(documentId);
+    return res.json(document);
+  },
+);
 
 router.get(
   "/summary/:companyId/text",

@@ -2,7 +2,6 @@ import { prisma } from "../lib/prisma.js";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
-import { create } from "domain";
 
 const SECRET = process.env.JWT_SECRET || "secret-key";
 

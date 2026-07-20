@@ -34,14 +34,12 @@ export const earningsWorker = new Worker(
 
     // OpenAI解析
     const summary = await summarizeIR(text);
-    console.log("unko");
-    console.log(summary);
     const [fyPart, qPart] = summary.fiscal_period?.split(" ") ?? [];
     const fiscalYear = Number(fyPart.replace("FY", ""));
     const quarter = Number(qPart.replace("Q", ""));
     // DB保存
     const company = await prisma.company.findFirst({
-      where: { id: cik },
+      where: { cik: cik },
     });
     if (!company) throw new Error(`Company not found: ${cik}`);
 

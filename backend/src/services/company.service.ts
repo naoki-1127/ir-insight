@@ -52,7 +52,7 @@ export const registerCompany = async (
     where: { ticker },
     update: {},
     create: {
-      id: cik,
+      cik: cik,
       ticker,
       name,
       market: "US",
@@ -80,6 +80,20 @@ export const getCompaniesWithDocument = async () => {
     },
   });
   return data;
+};
+
+export const getDocumentContent = async (documentId: string) => {
+  const document = await prisma.document.findUnique({
+    where: { id: documentId },
+    include: {
+      company: true,
+      contents: true,
+    },
+  });
+  if (!document) {
+    throw new NotFoundError("Not found");
+  }
+  return document;
 };
 
 export const deleteCompany = async (id: string) => {

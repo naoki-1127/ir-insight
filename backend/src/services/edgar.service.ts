@@ -1,36 +1,5 @@
 import * as cheerio from "cheerio";
 
-export const get8K = async (cik: string) => {
-  console.log(cik);
-  const res = await fetch(`https://data.sec.gov/submissions/${cik}.json`);
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`SEC API ${res.status}: ${body.slice(0, 200)}`);
-  }
-  const contentType = res.headers.get("content-type") ?? "";
-  if (!contentType.includes("json")) {
-    const body = await res.text();
-    throw new Error(`Expected JSON, got: ${body.slice(0, 200)}`);
-  }
-  const data = await res.json();
-  console.log("データ");
-
-  const recent = data.filings.recent;
-  const eightKAccessions = [];
-
-  for (let i = 0; i < recent.form.length; i++) {
-    if (recent.form[i] === "8-K" && recent.items[i]?.includes("2.02")) {
-      eightKAccessions.push({
-        accessionNumber: recent.accessionNumber[i], // "0001045810-25-000012" 形式
-        filingDate: recent.filingDate[i],
-        primaryDocument: recent.primaryDocument[i],
-      });
-    }
-  }
-  //console.log(eightKAccessions);
-  return eightKAccessions;
-};
-
 export const get8KPressReleaseHtml = async (
   cik: string,
   accessionNumber: string,
