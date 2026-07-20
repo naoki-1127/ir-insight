@@ -1,8 +1,15 @@
 <script setup lang="ts">
+import { computed } from "vue";
+import DOMPurify from "dompurify";
 const props = defineProps<{
   document: any;
 }>();
 const emit = defineEmits(["select"]);
+const sanitizedHtml = computed(() => {
+  return DOMPurify.sanitize(props.document?.contents[0].contentEn, {
+    ADD_TAGS: ["table", "thead", "tbody", "tr", "th", "td"],
+  });
+});
 
 const goToCompany = (id: string) => {
   emit("select", id);
@@ -15,7 +22,7 @@ const goToCompany = (id: string) => {
       {{ document.company.name }}
     </h1>
     <div>
-      <h1>{{ document.contents[0].contentEn }}</h1>
+      <div class="bg-white" v-html="sanitizedHtml"></div>
     </div>
   </div>
 </template>

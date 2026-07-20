@@ -28,7 +28,7 @@ router.post("/", authMiddleware, async (req, res) => {
     return res.status(400).json({ error: "cik, ticker, name は必須です" });
   }
   const company = await registerCompany(cik, ticker, name);
-  enqueue8KJobs(cik).catch((e) =>
+  enqueue8KJobs(company.id, cik).catch((e) =>
     console.error(`[enqueue] failed: ${e.message}`),
   );
   res.json({ company });

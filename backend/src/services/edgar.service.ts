@@ -4,6 +4,9 @@ export const get8KPressReleaseHtml = async (
   cik: string,
   accessionNumber: string,
 ) => {
+  const SEC_HEADERS = {
+    "User-Agent": "YourCompanyName contact@yourcompany.com",
+  };
   const cikNumeric = cik.replace(/^CIK0*/, "");
   // Step1: 8-K (item 2.02) のaccessionNumberを取得
   const res = await fetch(`https://data.sec.gov/submissions/${cik}.json`);
@@ -11,41 +14,14 @@ export const get8KPressReleaseHtml = async (
     const body = await res.text();
     throw new Error(`SEC API ${res.status}: ${body.slice(0, 200)}`);
   }
-  const data = await res.json();
-  const recent = data.filings.recent;
-
-  const eightKList = [];
-  for (let i = 0; i < recent.form.length; i++) {
-    if (recent.form[i] === "8-K" && recent.items[i]?.includes("2.02")) {
-      eightKList.push({
-        accessionNumber: recent.accessionNumber[i],
-        filingDate: recent.filingDate[i],
-        primaryDocument: recent.primaryDocument[i],
-      });
-    }
-  }
-
-  if (eightKList.length === 0) {
-    throw new Error("8-K (item 2.02) が見つかりませんでした");
-  }
-
-  // Step2: primaryDocumentのHTMLを取得
-  const latest = eightKList[0];
-  const accNo2 = accessionNumber.replace(/-/g, "");
-  const accNo = latest.accessionNumber.replace(/-/g, "");
-  //const primaryUrl = `https://www.sec.gov/Archives/edgar/data/${cikNumeric}/${accNo}/${latest.primaryDocument}`;
-  const indexUrl = `https://www.sec.gov/Archives/edgar/data/${cikNumeric}/${accNo}/${latest.accessionNumber}-index.htm`;
-  const indexUrl2 = `https://www.sec.gov/Archives/edgar/data/${cikNumeric}/${accNo2}/${accessionNumber}-index.htm`;
-  //console.log("primaryUrl:", primaryUrl);
+  const accNo = accessionNumber.replace(/-/g, "");
+  const indexUrl = `https://www.sec.gov/Archives/edgar/data/${cikNumeric}/${accNo}/${accessionNumber}-index.htm`;
   console.log("indexUrl:", indexUrl);
-  console.log("indexUrl2:", indexUrl2);
-
-  const primaryRes = await fetch(indexUrl2);
+  const primaryRes = await fetch(indexUrl, { headers: SEC_HEADERS });
   if (!primaryRes.ok) {
     throw new Error(`primaryDocument取得失敗: ${primaryRes.status}`);
   }
   const indexHtml = await primaryRes.text(); // ここでbodyを消費
-
   // Step3: cheerioでEX-99.1リンクを抽出
   const $ = cheerio.load(indexHtml);
   let ex991Filename: string | undefined;
@@ -62,15 +38,19 @@ export const get8KPressReleaseHtml = async (
   }
 
   // Step4: 絶対URLに変換してEX-99.1のHTMLを取得
-  const ex991Url = `https://www.sec.gov/Archives/edgar/data/${cikNumeric}/${accNo2}/${ex991Filename}`;
+  const ex991Url = `https://www.sec.gov/Archives/edgar/data/${cikNumeric}/${accNo}/${ex991Filename}`;
   console.log("ex991Url:", ex991Url);
 
   const ex991Res = await fetch(ex991Url);
   if (!ex991Res.ok) {
     throw new Error(`EX-99.1取得失敗: ${ex991Res.status}`);
   }
-  const ex991Html = await ex991Res.text();
-
+  const rawText = await ex991Res.text();
+  const htmlStartIndex = rawText.search(/<html/i);
+  const stripped =
+    htmlStartIndex !== -1 ? rawText.slice(htmlStartIndex) : rawText;
+  const ex991Html = stripped.replace(/<\/TEXT>\s*<\/DOCUMENT>\s*$/i, "").trim();
+  console.log("ex991Html先頭300文字:", ex991Html.slice(0, 300));
   return {
     ex991Html,
     ex991Url,

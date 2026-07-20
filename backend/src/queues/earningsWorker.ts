@@ -8,14 +8,14 @@ import { redis } from "../lib/redis.js";
 export const earningsWorker = new Worker(
   "earnings",
   async (job) => {
-    const { cik, accessionNumber } = job.data;
+    const { companyId, cik, accessionNumber } = job.data;
 
     console.log(`[worker] processing: ${accessionNumber}`);
 
     // 既存チェック（重複スキップ）
     const exists = await prisma.financial.findFirst({
       where: {
-        company: { id: cik },
+        company: { id: companyId },
         document: { title: accessionNumber },
       },
     });
@@ -30,16 +30,17 @@ export const earningsWorker = new Worker(
       accessionNumber,
     );
     const $ = cheerio.load(ex991Html);
-    const text = $("body").text().replace(/\s+/g, " ").trim();
+    const textForAI = $("body").text().replace(/\s+/g, " ").trim();
+    const bodyHtml = $("body").html() ?? "";
 
     // OpenAI解析
-    const summary = await summarizeIR(text);
+    const summary = await summarizeIR(textForAI);
     const [fyPart, qPart] = summary.fiscal_period?.split(" ") ?? [];
     const fiscalYear = Number(fyPart.replace("FY", ""));
     const quarter = Number(qPart.replace("Q", ""));
     // DB保存
     const company = await prisma.company.findFirst({
-      where: { cik: cik },
+      where: { id: companyId },
     });
     if (!company) throw new Error(`Company not found: ${cik}`);
 
@@ -57,7 +58,7 @@ export const earningsWorker = new Worker(
     await prisma.documentContent.create({
       data: {
         documentId: document.id,
-        contentEn: text,
+        contentEn: bodyHtml,
         orderIndex: 0,
       },
     });
@@ -83,6 +84,6 @@ export const earningsWorker = new Worker(
   },
 );
 
-earningsWorker.on("failed", (job, err) => {
+earningsWorker.on("failed", (job: any, err: any) => {
   console.error(`[worker] failed: ${job?.id}`, err.message);
 });

@@ -1,7 +1,8 @@
 import { earningsQueue } from "../queues/earningsQueue.js";
 import { prisma } from "../lib/prisma.js";
 
-export const enqueue8KJobs = async (cik: string) => {
+//企業が登録された時に走る処理
+export const enqueue8KJobs = async (companyId: string, cik: string) => {
   const res = await fetch(`https://data.sec.gov/submissions/${cik}.json`);
   if (!res.ok) throw new Error(`SEC API ${res.status}`);
   const data = await res.json();
@@ -26,12 +27,12 @@ export const enqueue8KJobs = async (cik: string) => {
   }
 
   for (const filing of targets) {
-    await earningsQueue.add("process-8k", { cik, ...filing });
+    await earningsQueue.add("process-8k", { companyId, cik, ...filing });
   }
-
   return { enqueued: targets.length };
 };
 
+//batchから呼ばれる関数
 export const checkAllCompaniesForNew8K = async () => {
   try {
     const companies = await prisma.company.findMany({
@@ -78,6 +79,7 @@ export const checkAllCompaniesForNew8K = async () => {
 
         // 新着をキューに積む
         await earningsQueue.add("process-8k", {
+          companyId: company.id,
           cik: company.id,
           ticker: company.ticker,
           ...latestFiling,
