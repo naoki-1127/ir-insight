@@ -17,7 +17,11 @@ type Summary = {
   quarter: number;
 };
 
-const emit = defineEmits(["deleteCompany"]);
+const emit = defineEmits(["deleteCompany", "getDocumentContent"]);
+
+const getDocumentContent = (documentId: any) => {
+  emit("getDocumentContent", documentId);
+};
 
 const deleteCompany = (companyId: any) => {
   emit("deleteCompany", companyId);
@@ -247,6 +251,7 @@ watch(
               v-for="doc in group.docs"
               :key="doc.id"
               class="bg-[#36393b] p-3 rounded"
+              @click="getDocumentContent(doc.id)"
             >
               <p class="text-xs font-bold">
                 {{ group.year }}年度　第{{ doc.quarter }}四半期決算発表
