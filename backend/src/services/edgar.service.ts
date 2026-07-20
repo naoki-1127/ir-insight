@@ -9,7 +9,7 @@ export const get8KPressReleaseHtml = async (
   };
   const cikNumeric = cik.replace(/^CIK0*/, "");
   // Step1: 8-K (item 2.02) のaccessionNumberを取得
-  const res = await fetch(`https://data.sec.gov/submissions/${cik}.json`);
+  const res = await submissionsList(cik);
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`SEC API ${res.status}: ${body.slice(0, 200)}`);
@@ -50,9 +50,57 @@ export const get8KPressReleaseHtml = async (
   const stripped =
     htmlStartIndex !== -1 ? rawText.slice(htmlStartIndex) : rawText;
   const ex991Html = stripped.replace(/<\/TEXT>\s*<\/DOCUMENT>\s*$/i, "").trim();
-  console.log("ex991Html先頭300文字:", ex991Html.slice(0, 300));
   return {
     ex991Html,
     ex991Url,
   };
+};
+
+const submissionsList = async (cik: string) => {
+  const res = await fetch(`https://data.sec.gov/submissions/${cik}.json`);
+  return res;
+};
+
+export const get8k = async (cik: string) => {
+  const res = await submissionsList(cik);
+  if (!res.ok) throw new Error(`SEC API ${res.status}`);
+  const data = await res.json();
+  const recent = data.filings.recent;
+  //直近2年間の8K
+  const twoYearsAgo = new Date();
+  twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+  const targets = [];
+  for (let i = 0; i < recent.form.length; i++) {
+    if (
+      recent.form[i] === "8-K" &&
+      recent.items[i]?.includes("2.02") &&
+      new Date(recent.filingDate[i]) >= twoYearsAgo
+    ) {
+      targets.push({
+        accessionNumber: recent.accessionNumber[i],
+        filingDate: recent.filingDate[i],
+        primaryDocument: recent.primaryDocument[i],
+      });
+    }
+  }
+  return targets;
+};
+
+export const getLatest8k = async (cik: string) => {
+  const res = await submissionsList(cik);
+  if (!res.ok) throw new Error(`SEC API ${res.status}`);
+  const data = await res.json();
+  const recent = data.filings.recent;
+  let latestFiling = null;
+  for (let i = 0; i < recent.form.length; i++) {
+    if (recent.form[i] === "8-K" && recent.items[i]?.includes("2.02")) {
+      latestFiling = {
+        accessionNumber: recent.accessionNumber[i],
+        filingDate: recent.filingDate[i],
+        primaryDocument: recent.primaryDocument[i],
+      };
+      break; // 最初に見つかったもの（=直近）だけ使う
+    }
+  }
+  return latestFiling;
 };

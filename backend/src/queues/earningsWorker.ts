@@ -9,7 +9,6 @@ export const earningsWorker = new Worker(
   "earnings",
   async (job) => {
     const { companyId, cik, accessionNumber } = job.data;
-
     console.log(`[worker] processing: ${accessionNumber}`);
 
     // 既存チェック（重複スキップ）

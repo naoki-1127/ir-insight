@@ -1,71 +1,32 @@
 import { earningsQueue } from "../queues/earningsQueue.js";
 import { prisma } from "../lib/prisma.js";
+import { getLatest8k, get8k } from "./edgar.service.js";
 
 //企業が登録された時に走る処理
 export const enqueue8KJobs = async (companyId: string, cik: string) => {
-  const res = await fetch(`https://data.sec.gov/submissions/${cik}.json`);
-  if (!res.ok) throw new Error(`SEC API ${res.status}`);
-  const data = await res.json();
-  const recent = data.filings.recent;
-
-  const twoYearsAgo = new Date();
-  twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
-
-  const targets = [];
-  for (let i = 0; i < recent.form.length; i++) {
-    if (
-      recent.form[i] === "8-K" &&
-      recent.items[i]?.includes("2.02") &&
-      new Date(recent.filingDate[i]) >= twoYearsAgo
-    ) {
-      targets.push({
-        accessionNumber: recent.accessionNumber[i],
-        filingDate: recent.filingDate[i],
-        primaryDocument: recent.primaryDocument[i],
-      });
+  const targets = await get8k(cik);
+  if (targets) {
+    for (const filing of targets) {
+      await earningsQueue.add("process-8k", { companyId, cik, ...filing });
     }
+    return { enqueued: targets.length };
   }
-
-  for (const filing of targets) {
-    await earningsQueue.add("process-8k", { companyId, cik, ...filing });
-  }
-  return { enqueued: targets.length };
 };
 
 //batchから呼ばれる関数
 export const checkAllCompaniesForNew8K = async () => {
   try {
     const companies = await prisma.company.findMany({
-      select: { id: true, ticker: true },
+      select: { id: true, ticker: true, cik: true },
     });
-    console.log(`[check-all] checking ${companies.length} companies`);
-
+    console.log(`[check-all] checking: ${companies.length} companies`);
     let enqueued = 0;
-
     for (const company of companies) {
       try {
-        const secRes = await fetch(
-          `https://data.sec.gov/submissions/${company.id}.json`,
-        );
-        if (!secRes.ok) continue;
-        const data = await secRes.json();
-        const recent = data.filings.recent;
-
+        console.log(`[check-all] start: ${company.ticker}`);
         // item 2.02 の8-Kを直近1件だけ取得
-        let latestFiling = null;
-        for (let i = 0; i < recent.form.length; i++) {
-          if (recent.form[i] === "8-K" && recent.items[i]?.includes("2.02")) {
-            latestFiling = {
-              accessionNumber: recent.accessionNumber[i],
-              filingDate: recent.filingDate[i],
-              primaryDocument: recent.primaryDocument[i],
-            };
-            break; // 最初に見つかったもの（=直近）だけ使う
-          }
-        }
-
+        let latestFiling = await getLatest8k(company.cik);
         if (!latestFiling) continue;
-
         // DBに既存かチェック
         const exists = await prisma.document.findFirst({
           where: { title: latestFiling.accessionNumber },
@@ -76,11 +37,10 @@ export const checkAllCompaniesForNew8K = async () => {
           );
           continue;
         }
-
         // 新着をキューに積む
         await earningsQueue.add("process-8k", {
           companyId: company.id,
-          cik: company.id,
+          cik: company.cik,
           ticker: company.ticker,
           ...latestFiling,
         });
@@ -89,10 +49,13 @@ export const checkAllCompaniesForNew8K = async () => {
         console.log(
           `[check-all] enqueued: ${company.ticker} ${latestFiling.accessionNumber}`,
         );
-      } catch (e: any) {
+      } catch (err: any) {
         console.error(`[check-all] error: ${company.ticker} ${e.message}`);
       }
     }
     return { checked: companies.length, enqueued };
-  } catch (err) {}
+  } catch (err: any) {
+    console.error(`[check-all] fatal error: ${err.message}`);
+    throw err;
+  }
 };
