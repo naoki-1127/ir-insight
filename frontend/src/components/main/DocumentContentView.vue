@@ -1,17 +1,19 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import DOMPurify from "dompurify";
+import type { CompanyId, DocumentId } from "../../types/branded";
 const props = defineProps<{
   document: any;
 }>();
 const emit = defineEmits(["select"]);
+
 const sanitizedHtml = computed(() => {
   return DOMPurify.sanitize(props.document?.contents[0].contentEn, {
     ADD_TAGS: ["table", "thead", "tbody", "tr", "th", "td"],
   });
 });
 
-const goToCompany = (id: string) => {
+const goToCompany = (id: CompanyId) => {
   emit("select", id);
 };
 </script>

@@ -1,40 +1,25 @@
 <script setup lang="ts">
 import { computed, watch, ref } from "vue";
-import api from "../../api/axios";
+import { fetchIRSummaryText } from "../../api/irSummary";
+import { readCache, writeCache } from "../../lib/irSummaryCache";
 import { CircleCheck, TriangleAlert, Trash2 } from "@lucide/vue";
-
-type Company = {
-  id: string;
-  name: string;
-  ticker: string;
-  documents: any[];
-};
-type Summary = {
-  driver: string;
-  risks: string[];
-  summaries: any[];
-  fiscalYear: number;
-  quarter: number;
-  success: boolean;
-  error: string | null;
-};
+import type { Company, IRSummaryText } from "../../types/ir";
+import type { CompanyId, DocumentId } from "../../types/branded";
 
 const emit = defineEmits(["deleteCompany", "getDocumentContent"]);
+const props = defineProps<{
+  companyId: CompanyId;
+  companies: Company[];
+}>();
 
-const getDocumentContent = (documentId: any) => {
+const getDocumentContent = (documentId: DocumentId) => {
   emit("getDocumentContent", documentId);
 };
 
-const deleteCompany = (companyId: any) => {
+const deleteCompany = (companyId: CompanyId) => {
   emit("deleteCompany", companyId);
 };
 
-const summaryText = ref<Summary | null>(null);
-
-const props = defineProps<{
-  companyId: string;
-  companies: Company[];
-}>();
 const company = computed(() =>
   props.companies.find((c) => c.id === props.companyId),
 );
@@ -92,18 +77,56 @@ const formatJapaneseCurrency = (value: number) => {
 
   return value.toLocaleString() + "円";
 };
+const summaryText = ref<IRSummaryText | null>(null);
+const summaryLoading = ref(false);
+const summaryError = ref<string | null>(null);
+const summaryFromCache = ref(false);
+
+const latestDocumentId = computed<string | null>(() => {
+  if (!company.value || company.value.documents.length === 0) return null;
+
+  const sorted = [...company.value.documents].sort((a, b) => {
+    if (a.fiscalYear !== b.fiscalYear) return b.fiscalYear - a.fiscalYear;
+    return b.quarter - a.quarter;
+  });
+
+  return sorted[0].id;
+});
 
 let currentRequestId = 0;
 watch(
-  () => props.companyId,
-  async (newId) => {
-    if (!newId) return;
+  () => [props.companyId, latestDocumentId.value] as const,
+  async (newValue) => {
+    const [newCompanyId, newDocumentId] = newValue;
+    if (!newCompanyId || !newDocumentId) return;
     const requestId = ++currentRequestId;
-    summaryText.value = null;
-    const res = await api.get(`/ir/summary/${newId}/text`);
-    if (requestId === currentRequestId) {
-      summaryText.value = res.data.data;
+    summaryError.value = null;
+
+    // 1. キャッシュを確認。documentIdが一致していれば再取得しない
+    const cached = readCache(newCompanyId);
+    if (cached && cached.documentId === newDocumentId) {
+      summaryText.value = cached.data;
+      summaryFromCache.value = true;
+      summaryLoading.value = false;
+      return;
     }
+    // 2. 新しいドキュメントが出ている、またはキャッシュがない → 取得
+    summaryText.value = null;
+    summaryFromCache.value = false;
+    summaryLoading.value = true;
+
+    const res = await fetchIRSummaryText(newCompanyId);
+    // 会社を素早く切り替えた場合、古いリクエストの結果を無視する
+    if (requestId !== currentRequestId) return;
+    summaryLoading.value = false;
+
+    if (!res.success) {
+      summaryError.value = res.error;
+      return;
+    }
+
+    summaryText.value = res.data;
+    writeCache(newCompanyId, newDocumentId, res.data);
   },
   { immediate: true },
 );

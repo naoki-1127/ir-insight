@@ -1,15 +1,10 @@
 <script setup lang="ts">
 import CompanySearch from "../CompanySearch.vue";
-
-interface Company {
-  cik: string;
-  ticker: string;
-  name: string;
-}
+import type { RegisterCompany } from "../../types/company";
 
 const emit = defineEmits(["companySelected"]);
 
-const handleCompanySelected = (company: Company) => {
+const handleCompanySelected = (company: RegisterCompany) => {
   emit("companySelected", company);
 };
 </script>

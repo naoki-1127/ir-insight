@@ -82,6 +82,25 @@ export const getCompaniesWithDocument = async () => {
   return data;
 };
 
+export const getLatestFilingMeta = async (ticker: string) => {
+  ticker = "fdc2b9c3-fe26-473b-9243-4e9f4fa7a382";
+  const data = await prisma.document.findFirst({
+    where: { companyId: ticker },
+    orderBy: [
+      {
+        fiscalYear: "desc",
+      },
+      {
+        quarter: "desc",
+      },
+    ],
+  });
+  if (!data) {
+    return "見つからない";
+  }
+  return data;
+};
+
 export const getDocumentContent = async (documentId: string) => {
   const document = await prisma.document.findUnique({
     where: { id: documentId },

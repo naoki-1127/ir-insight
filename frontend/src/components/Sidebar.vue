@@ -1,12 +1,13 @@
 <script setup lang="ts">
+import type { CompanyId } from "../types/branded";
 defineProps<{
-  companies: { id: string; name: string }[];
-  selectedCompanyId: string | null;
+  companies: { id: CompanyId; name: string }[];
+  selectedCompanyId: CompanyId | null;
 }>();
 
 const emit = defineEmits(["select", "upload"]);
 
-const selectCompany = (id: string) => {
+const selectCompany = (id: CompanyId) => {
   emit("select", id);
 };
 </script>

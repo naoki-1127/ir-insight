@@ -5,6 +5,7 @@ import { authMiddleware } from "../middleware/auth.js";
 import { Request } from "express";
 import { summarizeIRText } from "../services/ai.service.js";
 import {
+  getLatestFilingMeta,
   getCompaniesWithDocument,
   getDocumentContent,
 } from "../services/company.service.js";
@@ -29,6 +30,18 @@ router.get(
     return res.json(document);
   },
 );
+
+router.get("/summary/latest-id", authMiddleware, async (req: any, res: any) => {
+  const ticker = String(req.query.ticker ?? "").trim();
+  if (!ticker) return res.json([]);
+  console.log("check_ticker", ticker);
+  const latestFiling = await getLatestFilingMeta(ticker);
+  if (ticker == "") {
+    return res.json("a");
+  } else {
+    return res.json(latestFiling);
+  }
+});
 
 router.get(
   "/summary/:companyId/text",
