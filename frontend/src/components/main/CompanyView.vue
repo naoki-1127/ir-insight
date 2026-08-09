@@ -15,6 +15,8 @@ type Summary = {
   summaries: any[];
   fiscalYear: number;
   quarter: number;
+  success: boolean;
+  error: string | null;
 };
 
 const emit = defineEmits(["deleteCompany", "getDocumentContent"]);
@@ -100,7 +102,7 @@ watch(
     summaryText.value = null;
     const res = await api.get(`/ir/summary/${newId}/text`);
     if (requestId === currentRequestId) {
-      summaryText.value = res.data;
+      summaryText.value = res.data.data;
     }
   },
   { immediate: true },
@@ -209,12 +211,13 @@ watch(
       <!-- ハイライト -->
       <div class="bg-[#1f2020] p-4 rounded col-span-4">
         <p class="text-sm font-bold mb-2 text-start">
-          直近IRのハイライト<span v-if="summaryText" class="text-xs"
+          直近IRのハイライト<span v-if="summaryText?.risks" class="text-xs"
             >(FY{{ summaryText.fiscalYear }} Q{{ summaryText.quarter }})</span
           >
         </p>
         <ul v-if="summaryText" class="text-xs space-y-1 text-left">
           <li
+            v-if="summaryText.risks"
             v-for="(summary, index) in summaryText.summaries"
             :key="index"
             class="flex items-center gap-2"
@@ -229,6 +232,7 @@ watch(
             />
             {{ summary.text }}
           </li>
+          <li>{{ summaryText.error }}</li>
         </ul>
       </div>
     </div>
@@ -268,6 +272,7 @@ watch(
         </p>
         <ul v-if="summaryText" class="text-xs space-y-1 text-start">
           <li
+            v-if="summaryText.risks"
             v-for="(risk, index) in summaryText.risks"
             :key="index"
             class="flex items-center gap-2"
@@ -275,6 +280,7 @@ watch(
             <TriangleAlert class="w-4 h-4 mt-0.5 text-yellow-400 shrink-0" />
             <span>{{ risk }}</span>
           </li>
+          <li>{{ summaryText.error }}</li>
         </ul>
       </div>
     </div>

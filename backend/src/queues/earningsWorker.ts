@@ -34,7 +34,12 @@ export const earningsWorker = new Worker(
 
     // OpenAI解析
     const summary = await summarizeIR(textForAI);
-    const [fyPart, qPart] = summary.fiscal_period?.split(" ") ?? [];
+    console.log("サマリー", summary);
+    if (!summary.success) {
+      console.error(summary.error);
+      return;
+    }
+    const [fyPart, qPart] = summary.data.fiscal_period?.split(" ") ?? [];
     const fiscalYear = Number(fyPart.replace("FY", ""));
     const quarter = Number(qPart.replace("Q", ""));
     // DB保存
@@ -69,9 +74,9 @@ export const earningsWorker = new Worker(
         fiscalYear: fiscalYear,
         fiscalQuarter: quarter,
         periodType: "Q",
-        revenue: summary.revenue,
-        netIncomeGaap: summary.net_income_gaap,
-        netIncomeNonGaap: summary.net_income_non_gaap,
+        revenue: summary.data.revenue,
+        netIncomeGaap: summary.data.net_income_gaap,
+        netIncomeNonGaap: summary.data.net_income_non_gaap,
       },
     });
 

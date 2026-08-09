@@ -36,9 +36,25 @@ type IRData = {
 };
 
 // 成功/失敗を型で区別する
-export type IRSummaryResult =
+export type IRSummaryTextResult =
   | { success: true; data: IRSummaryText }
   | { success: false; error: string };
+
+export type IRSummaryResult =
+  | { success: true; data: IRSummary }
+  | { success: false; error: string };
+
+function isIRSummary(value: unknown): value is IRSummary {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+
+  if (v.title !== null && typeof v.title !== "string") return false;
+  if (v.ticker !== null && typeof v.ticker !== "string") return false;
+  if (v.company_name !== null && typeof v.company_name !== "string")
+    return false;
+
+  return true;
+}
 
 function isIRSummaryText(value: unknown): value is IRSummaryText {
   if (typeof value !== "object" || value === null) return false;
@@ -75,7 +91,7 @@ const calcMetrics = (data: IRData) => {
   };
 };
 
-export const summarizeIR = async (text: string): Promise<IRSummary> => {
+export const summarizeIR = async (text: string): Promise<IRSummaryResult> => {
   const prompt = `
 以下のIRテキストから情報を抽出してください。
 不明な場合は null を返してください。
@@ -121,30 +137,67 @@ export const summarizeIR = async (text: string): Promise<IRSummary> => {
 ${text.slice(0, 8000)}
 """
 `;
-  const res = await openai.chat.completions.create({
-    model: "gpt-5.4-mini",
-    messages: [
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-  });
-  let content = res.choices[0].message.content ?? "";
   try {
-    let jsonContent = JSON.parse(content);
-    let metrics = calcMetrics(jsonContent);
-    jsonContent = { ...jsonContent, ...metrics };
-    return jsonContent;
-  } catch (e) {
-    console.error("JSON parse error:", content);
-    throw new Error("AIレスポンスのパースに失敗");
+    const res = await openai.chat.completions.create({
+      model: "gpt-5.4-mini",
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+    });
+    let content = res.choices[0].message.content ?? "";
+    let jsonContent: unknown;
+    try {
+      const persed = JSON.parse(content);
+      let metrics = calcMetrics(persed);
+      jsonContent = { ...persed, ...metrics };
+    } catch (e) {
+      console.error("JSON parse error:", content);
+      return {
+        success: false,
+        error: "AIレスポンスのパースに失敗しました。もう一度お試しください。",
+      };
+    }
+    if (!isIRSummary(jsonContent)) {
+      console.error("Unexpected shape1:", jsonContent);
+      return {
+        success: false,
+        error: "AIレスポンスの形式が想定と異なります。",
+      };
+    }
+    return { success: true, data: jsonContent };
+  } catch (err) {
+    if (err instanceof OpenAI.APIError) {
+      if (err.status === 429) {
+        console.error("レート制限またはクレジット不足:", err.message);
+        // ユーザーへの通知やリトライ処理をここに
+        return {
+          success: false,
+          error: "レート制限またはクレジット不足です。",
+        };
+      } else {
+        console.error(`APIエラー (status: ${err.status}):`, err.message);
+        return {
+          success: false,
+          error:
+            "リクエストが混み合っています。しばらく待ってから再度お試しください。",
+        };
+      }
+    } else {
+      console.error("予期しないエラー:", err);
+      return {
+        success: false,
+        error: "予期しないエラーが発生しました。",
+      };
+    }
   }
 };
 
 export const summarizeIRText = async (
   text: string,
-): Promise<IRSummaryResult> => {
+): Promise<IRSummaryTextResult> => {
   const prompt = `
 あなたはグロース株投資家向けに決算を要約するアナリストです。
 以下のIRテキストから、投資判断に必要な要点のみを抽出してください。
