@@ -1,10 +1,8 @@
 // src/routes/todo.ts
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
-import { authMiddleware, AuthRequest } from "../middleware/auth.js";
+import { authMiddleware } from "../middleware/auth.js";
 import { Request } from "express";
-import fs from "fs/promises";
-import path from "path";
 import { summarizeIRText } from "../services/ai.service.js";
 import {
   getCompaniesWithDocument,
@@ -12,18 +10,6 @@ import {
 } from "../services/company.service.js";
 
 const router = Router();
-
-// 全 ir 取得
-router.get("/", authMiddleware, async (req: AuthRequest, res: any) => {
-  const userId = req.userId;
-  const dirPath = path.join(process.cwd(), "uploads", `user_${userId}`);
-  const files = await fs.readdir(dirPath);
-  const fileList = files.map((file) => ({
-    name: file,
-    path: path.join(dirPath, file),
-  }));
-  res.json(fileList);
-});
 
 // Symbol取得
 router.get("/companies", authMiddleware, async (_req, res: any) => {

@@ -35,6 +35,29 @@ type IRData = {
   previous_net_income_gaap: number;
 };
 
+// 成功/失敗を型で区別する
+export type IRSummaryResult =
+  | { success: true; data: IRSummaryText }
+  | { success: false; error: string };
+
+function isIRSummaryText(value: unknown): value is IRSummaryText {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+
+  if (v.driver !== null && typeof v.driver !== "string") return false;
+  if (!Array.isArray(v.risks) || !v.risks.every((r) => typeof r === "string"))
+    return false;
+  if (!Array.isArray(v.summaries)) return false;
+
+  return v.summaries.every(
+    (s) =>
+      typeof s === "object" &&
+      s !== null &&
+      typeof (s as any).text === "string" &&
+      ["positive", "negative", "neutral"].includes((s as any).sentiment),
+  );
+}
+
 const calcMetrics = (data: IRData) => {
   const revenue_yoy =
     (data.revenue - data.previous_revenue) / data.previous_revenue;
@@ -119,7 +142,9 @@ ${text.slice(0, 8000)}
   }
 };
 
-export const summarizeIRText = async (text: string): Promise<IRSummaryText> => {
+export const summarizeIRText = async (
+  text: string,
+): Promise<IRSummaryResult> => {
   const prompt = `
 あなたはグロース株投資家向けに決算を要約するアナリストです。
 以下のIRテキストから、投資判断に必要な要点のみを抽出してください。
@@ -175,6 +200,7 @@ export const summarizeIRText = async (text: string): Promise<IRSummaryText> => {
 # 重要ルール
 - textとsentimentは必ず整合性を取る（矛盾禁止）
 - 不明な場合はneutral
+- すべてのキーと文字列値はダブルクォーテーション(")で囲むこと
 
 # risksのルール
 - 最大5件
@@ -192,22 +218,58 @@ export const summarizeIRText = async (text: string): Promise<IRSummaryText> => {
 ${text.slice(0, 8000)}
 """
 `;
-  const res = await openai.chat.completions.create({
-    model: "gpt-5.4-mini",
-    messages: [
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-  });
-
-  const content = res.choices[0].message.content ?? "";
-
   try {
-    return JSON.parse(content);
-  } catch (e) {
-    console.error("JSON parse error:", content);
-    throw new Error("AIレスポンスのパースに失敗");
+    const res = await openai.chat.completions.create({
+      model: "gpt-5.4-mini",
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+    });
+    const content = res.choices[0].message.content ?? "";
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(content);
+    } catch (e) {
+      console.error("JSON parse error:", content);
+      return {
+        success: false,
+        error: "AIレスポンスの解析に失敗しました。もう一度お試しください。",
+      };
+    }
+    if (!isIRSummaryText(parsed)) {
+      console.error("Unexpected shape:", parsed);
+      return {
+        success: false,
+        error: "AIレスポンスの形式が想定と異なります。",
+      };
+    }
+    return { success: true, data: parsed };
+  } catch (err) {
+    if (err instanceof OpenAI.APIError) {
+      if (err.status === 429) {
+        console.error("レート制限またはクレジット不足:", err.message);
+        // ユーザーへの通知やリトライ処理をここに
+        return {
+          success: false,
+          error: "レート制限またはクレジット不足です。",
+        };
+      } else {
+        console.error(`APIエラー (status: ${err.status}):`, err.message);
+        return {
+          success: false,
+          error:
+            "リクエストが混み合っています。しばらく待ってから再度お試しください。",
+        };
+      }
+    } else {
+      console.error("予期しないエラー:", err);
+      return {
+        success: false,
+        error: "予期しないエラーが発生しました。",
+      };
+    }
   }
 };
