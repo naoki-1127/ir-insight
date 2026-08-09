@@ -1,19 +1,53 @@
 // src/routes/todo.ts
-import { Router } from "express";
+import { Request, Response, Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { authMiddleware } from "../middleware/auth.js";
-import { Request } from "express";
 import { summarizeIRText } from "../services/ai.service.js";
 import {
   getLatestFilingMeta,
   getCompaniesWithDocument,
   getDocumentContent,
 } from "../services/company.service.js";
+import type { DocumentId, CompanyId } from "../types/branded.js";
 
 const router = Router();
 
+type SearchQuery = {
+  ticker?: string;
+};
+type LatestFilingMeta = {
+  id: DocumentId;
+  title: string;
+  fileurl: string;
+  companyId: CompanyId;
+  userId: null;
+  fiscalYear: number;
+  quarter: number;
+  periodType: string;
+};
+type LatestFilingResponse = LatestFilingMeta | [] | { error: string };
+type SummaryText = {
+  driver: string | null;
+  risks: string[];
+  summaries: {
+    text: string;
+    sentiment: "positive" | "negative" | "neutral";
+  }[];
+};
+export type SummaryTextResponse =
+  | {
+      success: true;
+      fiscalYear: number;
+      quarter: number;
+      data: SummaryText;
+    }
+  | {
+      success: false;
+      error: string;
+    };
+
 // Symbol取得
-router.get("/companies", authMiddleware, async (_req, res: any) => {
+router.get("/companies", authMiddleware, async (_req, res) => {
   const data = await getCompaniesWithDocument();
   return res.json(data);
 });
@@ -31,51 +65,82 @@ router.get(
   },
 );
 
-router.get("/summary/latest-id", authMiddleware, async (req: any, res: any) => {
-  const ticker = String(req.query.ticker ?? "").trim();
-  if (!ticker) return res.json([]);
-  console.log("check_ticker", ticker);
-  const latestFiling = await getLatestFilingMeta(ticker);
-  if (ticker == "") {
-    return res.json("a");
-  } else {
-    return res.json(latestFiling);
-  }
-});
+router.get(
+  "/summary/latest-id",
+  authMiddleware,
+  async (
+    req: Request<{}, {}, {}, SearchQuery>,
+    res: Response<LatestFilingResponse>,
+  ) => {
+    const ticker = String(req.query.ticker).trim();
+    if (!ticker) return res.json([]);
+    console.log("check_ticker", ticker);
+    try {
+      const latestFiling = await getLatestFilingMeta(ticker);
+      return res.json(latestFiling);
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: "取得に失敗しました" });
+    }
+  },
+);
 
 router.get(
   "/summary/:companyId/text",
   authMiddleware,
-  async (req: Request<{ companyId: string }>, res: any) => {
+  async (
+    req: Request<{ companyId: string }>,
+    res: Response<SummaryTextResponse>,
+  ) => {
     const { companyId } = req.params;
     if (!companyId) {
-      return res.status(400).json({ error: "企業情報が取得できませんでした" });
+      return res
+        .status(400)
+        .json({ success: false, error: "企業情報が取得できませんでした" });
     }
-    const document = await prisma.document.findFirst({
-      where: {
-        companyId,
-      },
-      orderBy: [{ fiscalYear: "desc" }, { quarter: "desc" }],
-      include: {
-        contents: {
-          orderBy: {
-            orderIndex: "asc",
+    try {
+      const document = await prisma.document.findFirst({
+        where: {
+          companyId,
+        },
+        orderBy: [{ fiscalYear: "desc" }, { quarter: "desc" }],
+        include: {
+          contents: {
+            orderBy: {
+              orderIndex: "asc",
+            },
           },
         },
-      },
-    });
+      });
+      if (!document) {
+        return res.status(404).json({
+          success: false,
+          error: "ドキュメントが見つかりませんでした",
+        });
+      }
+      const contentEn = document.contents[0]?.contentEn;
+      if (!contentEn) {
+        return res
+          .status(400)
+          .json({ success: false, error: "8K情報が取得できませんでした" });
+      }
 
-    const contentEn = document?.contents[0]?.contentEn;
-    if (!contentEn) {
-      return res.status(400).json({ error: "8K情報が取得できませんでした" });
+      const result = await summarizeIRText(contentEn);
+      if (!result.success) {
+        return res.json({ success: false, error: result.error });
+      }
+      return res.json({
+        success: true,
+        data: result.data,
+        fiscalYear: document.fiscalYear,
+        quarter: document.quarter,
+      });
+    } catch (err) {
+      console.error(err);
+      return res
+        .status(500)
+        .json({ success: false, error: "取得に失敗しました" });
     }
-
-    const result = await summarizeIRText(contentEn);
-    res.json({
-      ...result,
-      fiscalYear: document.fiscalYear,
-      quarter: document.quarter,
-    });
   },
 );
 

@@ -1,3 +1,4 @@
+import type { CompanyId, DocumentId } from "./branded";
 export type IRDocument = {
   id: string;
   fiscalYear: number;
@@ -14,7 +15,7 @@ export type Financial = {
 };
 
 export type Company = {
-  id: string;
+  id: CompanyId;
   name: string;
   ticker: string;
   documents: IRDocument[];
@@ -40,8 +41,8 @@ export type IRSummaryResult =
 
 // localStorageに保存する形
 export type CachedIRSummary = {
-  companyId: string;
-  documentId: string;
+  companyId: CompanyId;
+  documentId: DocumentId;
   cachedAt: string;
   data: IRSummaryText;
 };

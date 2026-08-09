@@ -8,7 +8,7 @@ import type { CompanyId, DocumentId } from "../../types/branded";
 
 const emit = defineEmits(["deleteCompany", "getDocumentContent"]);
 const props = defineProps<{
-  companyId: CompanyId;
+  companyId: CompanyId | null;
   companies: Company[];
 }>();
 

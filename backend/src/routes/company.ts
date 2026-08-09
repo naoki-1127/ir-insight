@@ -1,6 +1,5 @@
-import { Router } from "express";
+import { Router, Request } from "express";
 import { authMiddleware } from "../middleware/auth.js";
-import { Request } from "express";
 import {
   searchCompanies,
   registerCompany,
@@ -11,18 +10,32 @@ import {
   enqueue8KJobs,
   checkAllCompaniesForNew8K,
 } from "../services/earnings.service.js";
+import type { CompanyId } from "../types/branded.js";
 
 const router = Router();
+type SearchQuery = {
+  q?: string;
+};
 
-router.get("/search", authMiddleware, async (req, res) => {
-  const q = String(req.query.q ?? "").trim();
-  if (!q) return res.json([]);
-  const results = await searchCompanies(q);
-  res.json(results);
-});
+type Company = {
+  cik: string;
+  name: string;
+  ticker: string;
+};
+
+router.get(
+  "/search",
+  authMiddleware,
+  async (req: Request<{}, {}, {}, SearchQuery>, res) => {
+    const q = (req.query.q ?? "").trim();
+    if (!q) return res.json([]);
+    const results = await searchCompanies(q);
+    res.json(results);
+  },
+);
 
 // POST /api/companies
-router.post("/", authMiddleware, async (req, res) => {
+router.post("/", authMiddleware, async (req: Request<{}, {}, Company>, res) => {
   const { cik, ticker, name } = req.body;
   if (!cik || !ticker || !name) {
     return res.status(400).json({ error: "cik, ticker, name は必須です" });
@@ -37,7 +50,7 @@ router.post("/", authMiddleware, async (req, res) => {
 router.delete(
   "/:id",
   authMiddleware,
-  async (req: Request<{ id: string }>, res: any) => {
+  async (req: Request<{ id: CompanyId }>, res: any) => {
     try {
       const { id } = req.params;
       if (!id) {

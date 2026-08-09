@@ -6,23 +6,19 @@ import Sidebar from "../components/Sidebar.vue";
 import UploadView from "../components/main/UploadView.vue";
 import CompanyView from "../components/main/CompanyView.vue";
 import DocumentContentView from "../components/main/DocumentContentView.vue";
+import type { Company } from "../types/company";
+import type { CompanyId, DocumentId } from "../types/branded";
+import { deleteCompanyData } from "../api/company.ts";
 
 onMounted(() => {
   getCompanies();
 });
 
-type Company = {
-  id: string;
-  name: string;
-  ticker: string;
-  documents: any[];
-};
-
 type ViewMode = "upload" | "company" | "document";
 
 const currentView = ref<ViewMode>("upload");
-const selectedCompanyId = ref("");
-const selectCompany = (id: string) => {
+const selectedCompanyId = ref<CompanyId | null>(null);
+const selectCompany = (id: CompanyId) => {
   selectedCompanyId.value = id;
   currentView.value = "company";
 };
@@ -33,24 +29,24 @@ const file = ref<File | null>(null);
 const openUpload = () => {
   file.value = null;
   console.log("tesr");
-  selectedCompanyId.value = "";
+  selectedCompanyId.value = null;
   currentView.value = "upload";
 };
 
-const deleteCompany = async (companyId: string) => {
+const deleteCompany = async (companyId: CompanyId) => {
   if (!companyId) return;
   try {
-    await api.delete(`/api/companies/${companyId}`);
-    await getCompanies(); // 一覧を再取得
-    selectedCompanyId.value = "";
-    currentView.value = "upload";
+    await deleteCompanyData(companyId);
   } catch (err: any) {
     console.error(err);
     // 必要なら alert やトースト
   }
+  await getCompanies(); // 一覧を再取得
+  selectedCompanyId.value = null;
+  currentView.value = "upload";
 };
 
-const getDocumentContent = async (documentId: string) => {
+const getDocumentContent = async (documentId: DocumentId) => {
   if (!documentId) return;
   try {
     const res = await api.get(`/ir/detail/${documentId}`);
@@ -66,7 +62,9 @@ const getCompanies = async () => {
   try {
     const res = await api.get("/ir/companies");
     companies.value = res.data;
-  } catch (err: any) {}
+  } catch (err: any) {
+    console.error("企業一覧の取得に失敗しました:", err);
+  }
 };
 </script>
 

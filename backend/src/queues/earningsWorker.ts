@@ -1,13 +1,20 @@
-import { Worker } from "bullmq";
+import { Worker, Job } from "bullmq";
 import { get8KPressReleaseHtml } from "../services/edgar.service.js";
 import { summarizeIR } from "../services/ai.service.js";
 import * as cheerio from "cheerio";
 import { prisma } from "../lib/prisma.js";
 import { redis } from "../lib/redis.js";
 
-export const earningsWorker = new Worker(
+type CompanyId = { companyId: string };
+export type EarningsJobData = {
+  companyId: CompanyId;
+  cik: string;
+  accessionNumber: string;
+};
+
+export const earningsWorker = new Worker<EarningsJobData>(
   "earnings",
-  async (job) => {
+  async (job: Job<EarningsJobData>) => {
     const { companyId, cik, accessionNumber } = job.data;
     console.log(`[worker] processing: ${accessionNumber}`);
 
@@ -34,7 +41,6 @@ export const earningsWorker = new Worker(
 
     // OpenAI解析
     const summary = await summarizeIR(textForAI);
-    console.log("サマリー", summary);
     if (!summary.success) {
       console.error(summary.error);
       return;

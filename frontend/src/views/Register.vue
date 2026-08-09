@@ -6,7 +6,6 @@ import vueLogo from "../assets/vue.svg";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 
-const count = ref(0);
 const email = ref("");
 const password = ref("");
 const error = ref("");

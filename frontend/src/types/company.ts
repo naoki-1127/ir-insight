@@ -1,5 +1,6 @@
+import type { CompanyId } from "./branded";
 export type Company = {
-  id: string;
+  id: CompanyId;
   name: string;
   ticker: string;
   documents: any[];

@@ -10,6 +10,8 @@ interface TickerEntry {
   title: string;
 }
 
+type CompanyId = { companyId: string };
+
 const fetchTickerMap = async (): Promise<TickerEntry[]> => {
   const cached = await redis.get(TICKER_MAP_KEY);
   if (cached) return JSON.parse(cached);
@@ -115,7 +117,7 @@ export const getDocumentContent = async (documentId: string) => {
   return document;
 };
 
-export const deleteCompany = async (id: string) => {
+export const deleteCompany = async (id: CompanyId) => {
   const company = await prisma.company.findUnique({ where: { id } });
   if (!company) {
     throw new NotFoundError("Not found");

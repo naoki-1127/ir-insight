@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, Request } from "express";
 import {
   loginUser,
   registerUser,
@@ -10,6 +10,11 @@ import {
   AuthenticateError,
 } from "../services/auth.service.js";
 
+type User = {
+  email: string;
+  password: string;
+};
+
 const router = Router();
 
 const refreshCookieOptions = {
@@ -20,7 +25,7 @@ const refreshCookieOptions = {
 };
 const { maxAge, ...clearRefreshCookieOptions } = refreshCookieOptions;
 
-router.post("/register", async (req, res) => {
+router.post("/register", async (req: Request<{}, {}, User>, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password)
@@ -41,7 +46,7 @@ router.post("/register", async (req, res) => {
 });
 
 // --- ログイン ---
-router.post("/login", async (req, res) => {
+router.post("/login", async (req: Request<{}, {}, User>, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password)
