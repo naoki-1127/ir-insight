@@ -3,19 +3,14 @@ import {
   loginUser,
   registerUser,
   generateTokens,
-  generateAccessToken,
   getRefreshToken,
   deleteRefreshToken,
   ConflictError,
   AuthenticateError,
+  type AuthCredentials,
+  type AuthResponse,
+  type LogoutResponse,
 } from "../services/auth.service.js";
-
-type AuthCredentials = {
-  email: string;
-  password: string;
-};
-type AuthResponse = { accessToken: string } | { error: string };
-type LogoutResponse = { message: string } | { error: string };
 
 const router = Router();
 
@@ -81,7 +76,7 @@ router.post(
 
 router.post("/logout", async (req: Request, res: Response<LogoutResponse>) => {
   try {
-    const refreshToken = req.cookies.refreshToken;
+    const refreshToken: string = req.cookies.refreshToken;
     if (!refreshToken) return res.status(401).json({ error: "Unauthorized" });
     await deleteRefreshToken(refreshToken);
     res
@@ -95,11 +90,18 @@ router.post("/logout", async (req: Request, res: Response<LogoutResponse>) => {
 
 router.post("/refresh", async (req: Request, res: Response<AuthResponse>) => {
   try {
-    const refreshToken = req.cookies.refreshToken;
+    const refreshToken: string = req.cookies.refreshToken;
     if (!refreshToken) return res.status(401).json({ error: "Unauthorized" });
+
     const stored = await getRefreshToken(refreshToken);
-    const newAccessToken = generateAccessToken(stored.userId);
-    res.json({ accessToken: newAccessToken });
+    if (!stored.userId) return res.status(401).json({ error: "Unauthorized" });
+    await deleteRefreshToken(refreshToken);
+    const { accessToken, refreshToken: newRefreshToken } = await generateTokens(
+      stored.userId,
+    );
+    res
+      .cookie("refreshToken", newRefreshToken, refreshCookieOptions)
+      .json({ accessToken });
   } catch (err) {
     if (err instanceof AuthenticateError) {
       return res
