@@ -1,19 +1,19 @@
 // src/routes/todo.ts
 import { Request, Response, Router } from "express";
-import { prisma } from "../lib/prisma.js";
 import { authMiddleware } from "../middleware/auth.js";
-import { summarizeIRText } from "../services/ai.service.js";
+import { getGuidanse, summarizeIRText } from "../services/ai.service.js";
 import {
   getLatestFilingMeta,
   getCompaniesWithDocument,
   getDocumentContent,
+  getLatestFilingMeta2,
 } from "../services/company.service.js";
 import type { DocumentId, CompanyId } from "../types/branded.js";
 
 const router = Router();
 
 type SearchQuery = {
-  ticker?: string;
+  ticker: CompanyId;
 };
 type LatestFilingMeta = {
   id: DocumentId;
@@ -72,7 +72,7 @@ router.get(
     req: Request<{}, {}, {}, SearchQuery>,
     res: Response<LatestFilingResponse>,
   ) => {
-    const ticker = String(req.query.ticker).trim();
+    const ticker = req.query.ticker;
     if (!ticker) return res.json([]);
     console.log("check_ticker", ticker);
     try {
@@ -89,7 +89,7 @@ router.get(
   "/summary/:companyId/text",
   authMiddleware,
   async (
-    req: Request<{ companyId: string }>,
+    req: Request<{ companyId: CompanyId }>,
     res: Response<SummaryTextResponse>,
   ) => {
     const { companyId } = req.params;
@@ -99,19 +99,8 @@ router.get(
         .json({ success: false, error: "企業情報が取得できませんでした" });
     }
     try {
-      const document = await prisma.document.findFirst({
-        where: {
-          companyId,
-        },
-        orderBy: [{ fiscalYear: "desc" }, { quarter: "desc" }],
-        include: {
-          contents: {
-            orderBy: {
-              orderIndex: "asc",
-            },
-          },
-        },
-      });
+      const document = await getLatestFilingMeta2(companyId);
+      console.log(document);
       if (!document) {
         return res.status(404).json({
           success: false,
@@ -126,6 +115,55 @@ router.get(
       }
 
       const result = await summarizeIRText(contentEn);
+      if (!result.success) {
+        return res.json({ success: false, error: result.error });
+      }
+      return res.json({
+        success: true,
+        data: {
+          ...result.data,
+          fiscalYear: document.fiscalYear,
+          quarter: document.quarter,
+        },
+      });
+    } catch (err) {
+      console.error(err);
+      return res
+        .status(500)
+        .json({ success: false, error: "取得に失敗しました" });
+    }
+  },
+);
+
+router.get(
+  "/summary/:companyId/text2",
+  authMiddleware,
+  async (
+    req: Request<{ companyId: CompanyId }>,
+    res: Response<SummaryTextResponse>,
+  ) => {
+    const { companyId } = req.params;
+    if (!companyId) {
+      return res
+        .status(400)
+        .json({ success: false, error: "企業情報が取得できませんでした" });
+    }
+    try {
+      const document = await getLatestFilingMeta2(companyId);
+      if (!document) {
+        return res.status(404).json({
+          success: false,
+          error: "ドキュメントが見つかりませんでした",
+        });
+      }
+      const contentEn = document.contents[0]?.contentEn;
+      if (!contentEn) {
+        return res
+          .status(400)
+          .json({ success: false, error: "8K情報が取得できませんでした" });
+      }
+
+      const result = await getGuidanse(contentEn);
       if (!result.success) {
         return res.json({ success: false, error: result.error });
       }

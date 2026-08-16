@@ -84,57 +84,113 @@ export const registerCompany = async (
 };
 
 export const getCompaniesWithDocument = async () => {
-  const data = await prisma.company.findMany({
-    include: {
-      documents: {
-        orderBy: [
-          {
-            fiscalYear: "desc",
+  try {
+    const data = await prisma.company.findMany({
+      include: {
+        documents: {
+          orderBy: [
+            {
+              fiscalYear: "desc",
+            },
+            {
+              quarter: "desc",
+            },
+          ],
+          include: {
+            financials: true,
           },
-          {
-            quarter: "desc",
-          },
-        ],
-        include: {
-          financials: true,
         },
       },
-    },
-  });
-  return data;
+    });
+    return data;
+  } catch (err) {
+    console.log(err);
+  }
 };
 
-export const getLatestFilingMeta = async (ticker: string) => {
-  ticker = "fdc2b9c3-fe26-473b-9243-4e9f4fa7a382";
-  const data = await prisma.document.findFirst({
-    where: { companyId: ticker },
-    orderBy: [
-      {
-        fiscalYear: "desc",
-      },
-      {
-        quarter: "desc",
-      },
-    ],
-  });
-  if (!data) {
-    return "見つからない";
+export const getLatestFilingMeta = async (ticker: CompanyId) => {
+  try {
+    const data = await prisma.document.findFirst({
+      where: { companyId: ticker },
+      orderBy: [
+        {
+          fiscalYear: "desc",
+        },
+        {
+          quarter: "desc",
+        },
+      ],
+    });
+    //console.log("check");
+    return data;
+  } catch (err) {
+    console.log(err);
   }
-  return data;
+};
+
+export const getLatestFilingMeta2 = async (ticker: CompanyId) => {
+  try {
+    const data = await prisma.document.findFirst({
+      where: { companyId: ticker },
+      orderBy: [
+        {
+          fiscalYear: "desc",
+        },
+        {
+          quarter: "desc",
+        },
+      ],
+      include: {
+        contents: {
+          orderBy: {
+            orderIndex: "asc",
+          },
+        },
+      },
+    });
+    console.log("check");
+    return data;
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+export const getFinance = async (ticker: CompanyId) => {
+  try {
+    const data = await prisma.financial.findMany({
+      where: { companyId: ticker },
+      orderBy: [
+        {
+          fiscalYear: "asc",
+        },
+        {
+          fiscalQuarter: "asc",
+        },
+      ],
+    });
+    console.log("check");
+    return { data: data };
+  } catch (err) {
+    console.log(err);
+  }
 };
 
 export const getDocumentContent = async (documentId: string) => {
-  const document = await prisma.document.findUnique({
-    where: { id: documentId },
-    include: {
-      company: true,
-      contents: true,
-    },
-  });
-  if (!document) {
-    throw new NotFoundError("Not found");
+  try {
+    const document = await prisma.document.findUnique({
+      where: { id: documentId },
+      include: {
+        company: true,
+        contents: true,
+      },
+    });
+    if (!document) {
+      throw new NotFoundError("Not found");
+    }
+    return document;
+  } catch (err) {
+    console.log(err);
   }
-  return document;
 };
 
 export const deleteCompany = async (id: CompanyId) => {
@@ -142,31 +198,34 @@ export const deleteCompany = async (id: CompanyId) => {
   if (!company) {
     throw new NotFoundError("Not found");
   }
-  const document = await prisma.$transaction([
-    prisma.documentContent.deleteMany({
-      where: {
-        document: {
+  try {
+    const document = await prisma.$transaction([
+      prisma.documentContent.deleteMany({
+        where: {
+          document: {
+            companyId: id,
+          },
+        },
+      }),
+      prisma.document.deleteMany({
+        where: {
           companyId: id,
         },
-      },
-    }),
-    prisma.document.deleteMany({
-      where: {
-        companyId: id,
-      },
-    }),
-    prisma.financial.deleteMany({
-      where: {
-        companyId: id,
-      },
-    }),
-    prisma.company.delete({
-      where: {
-        id,
-      },
-    }),
-  ]);
-  if (document.count === 0) {
+      }),
+      prisma.financial.deleteMany({
+        where: {
+          companyId: id,
+        },
+      }),
+      prisma.company.delete({
+        where: {
+          id,
+        },
+      }),
+    ]);
+    return document;
+  } catch (err) {
+    console.log(err);
     throw new NotFoundError("Not found");
   }
 };

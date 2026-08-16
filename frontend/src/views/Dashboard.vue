@@ -28,7 +28,6 @@ const file = ref<File | null>(null);
 
 const openUpload = () => {
   file.value = null;
-  console.log("tesr");
   selectedCompanyId.value = null;
   currentView.value = "upload";
 };

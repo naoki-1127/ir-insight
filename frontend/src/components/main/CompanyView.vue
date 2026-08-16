@@ -8,7 +8,7 @@ import type { CompanyId, DocumentId } from "../../types/branded";
 
 const emit = defineEmits(["deleteCompany", "getDocumentContent"]);
 const props = defineProps<{
-  companyId: CompanyId | null;
+  companyId: CompanyId;
   companies: Company[];
 }>();
 
@@ -43,15 +43,19 @@ const groupedDocuments = computed(() => {
 
 const groupedRevenueYoY = computed(() => {
   if (!company.value) return [];
-  const financials = company.value.documents.flatMap((doc) => doc.financials);
+  const financials = company.value.documents.flatMap(
+    (doc) => doc.financials ?? [],
+  );
+  console.log(financials);
   const map = new Map(
     financials.map((f) => [`${f.fiscalYear}-${f.fiscalQuarter}`, f]),
   );
+  console.log(map);
   return financials.map((current) => {
     const prevKey = `${current.fiscalYear - 1}-${current.fiscalQuarter}`;
     const previous = map.get(prevKey);
 
-    let yoy = null;
+    let yoy = 0;
 
     if (previous) {
       yoy = (current.revenue - previous.revenue) / previous.revenue;
@@ -62,6 +66,38 @@ const groupedRevenueYoY = computed(() => {
       yoy,
     };
   });
+});
+
+const groupedRevenueYoY2 = computed(() => {
+  if (!company.value) return [];
+  const financials = company.value.documents.flatMap(
+    (doc) => doc.financials ?? [],
+  );
+  const map = new Map(
+    financials.map((f) => [`${f.fiscalYear}-${f.fiscalQuarter}`, f]),
+  );
+  return financials
+    .map((current) => {
+      const prevKey = `${current.fiscalYear - 1}-${current.fiscalQuarter}`;
+      const previous = map.get(prevKey);
+
+      let yoy = 0;
+
+      if (previous) {
+        yoy = (current.revenue - previous.revenue) / previous.revenue;
+      }
+
+      return {
+        ...current,
+        yoy,
+      };
+    })
+    .sort((a, b) => {
+      if (a.fiscalYear !== b.fiscalYear) {
+        return a.fiscalYear - b.fiscalYear; // 年が違えば年で比較
+      }
+      return a.fiscalQuarter - b.fiscalQuarter; // 年が同じなら四半期で比較
+    });
 });
 
 const formatJapaneseCurrency = (value: number) => {
@@ -82,7 +118,7 @@ const summaryLoading = ref(false);
 const summaryError = ref<string | null>(null);
 const summaryFromCache = ref(false);
 
-const latestDocumentId = computed<string | null>(() => {
+const latestDocumentId = computed<DocumentId | null>(() => {
   if (!company.value || company.value.documents.length === 0) return null;
 
   const sorted = [...company.value.documents].sort((a, b) => {
@@ -136,17 +172,17 @@ watch(
   <div class="w-full h-full flex flex-col gap-6">
     <!-- Header -->
     <div class="flex items-center justify-between">
-      <div class="flex flex-col">
+      <div v-if="company" class="flex flex-col">
         <div class="flex items-center gap-2">
           <h1 class="text-2xl font-bold">
-            {{ company?.name }}
+            {{ company.name }}
           </h1>
           <Trash2
             class="w-5 h-5 shrink-0 text-gray-400 hover:text-red-400 cursor-pointer"
-            @click="deleteCompany(company?.id)"
+            @click="deleteCompany(company.id)"
           />
         </div>
-        <p class="text-sm text-start">Ticker:{{ company?.ticker }}</p>
+        <p class="text-sm text-start">Ticker:{{ company.ticker }}</p>
       </div>
 
       <!-- スコア -->
@@ -220,13 +256,19 @@ watch(
         <p class="text-sm font-bold mb-4 text-start">
           売上成長率のトレンド (YoY)
         </p>
-        <div class="flex items-end gap-4 h-40">
-          <div v-for="n in 8" :key="n" class="flex flex-col items-center">
+        <div class="flex items-end justify-center gap-4 h-40 overflow-hidden">
+          <div
+            v-for="(revenueYoY, index) in groupedRevenueYoY2"
+            :key="index"
+            class="flex flex-col items-center shrink-0"
+          >
             <div
               class="w-6 bg-green-400"
-              :style="{ height: `${20 + n * 10}px` }"
+              :style="{ height: `${revenueYoY.yoy * 100}px` }"
             ></div>
-            <p class="text-xs text-gray-400 mt-1">Q{{ n }}</p>
+            <p class="text-xs text-gray-400 mt-1">
+              FY{{ revenueYoY.fiscalYear }}<br />Q{{ revenueYoY.fiscalQuarter }}
+            </p>
           </div>
         </div>
       </div>

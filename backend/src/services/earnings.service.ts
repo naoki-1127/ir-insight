@@ -1,6 +1,7 @@
 import { earningsQueue } from "../queues/earningsQueue.js";
 import { prisma } from "../lib/prisma.js";
 import { getLatest8k, get8k } from "./edgar.service.js";
+import { CompanyId } from "../types/branded.js";
 
 export type checkNew8k = {
   checked: number;
@@ -8,7 +9,7 @@ export type checkNew8k = {
 };
 
 //企業が登録された時に走る処理
-export const enqueue8KJobs = async (companyId: string, cik: string) => {
+export const enqueue8KJobs = async (companyId: CompanyId, cik: string) => {
   const targets = await get8k(cik);
   if (targets) {
     for (const filing of targets) {

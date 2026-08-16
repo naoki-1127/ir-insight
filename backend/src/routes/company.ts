@@ -6,6 +6,7 @@ import {
   deleteCompany,
   NotFoundError,
   type RegisteredCompany,
+  getFinance,
 } from "../services/company.service.js";
 import {
   enqueue8KJobs,
@@ -86,6 +87,40 @@ router.get(
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "検索に失敗しました" });
+    }
+  },
+);
+
+router.get(
+  "/:companyId/finance",
+  authMiddleware,
+  async (req: Request<{ companyId: CompanyId }>, res) => {
+    const { companyId } = req.params;
+    if (!companyId) {
+      return res
+        .status(400)
+        .json({ success: false, error: "企業情報が取得できませんでした" });
+    }
+    try {
+      const financial = await getFinance(companyId);
+      if (!financial) {
+        return res.status(404).json({
+          success: false,
+          error: "ドキュメントが見つかりませんでした",
+        });
+      }
+      console.log(financial);
+      return res.json({
+        success: true,
+        data: {
+          financial,
+        },
+      });
+    } catch (err) {
+      console.error(err);
+      return res
+        .status(500)
+        .json({ success: false, error: "取得に失敗しました" });
     }
   },
 );

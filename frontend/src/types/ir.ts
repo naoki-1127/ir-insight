@@ -1,6 +1,6 @@
 import type { CompanyId, DocumentId } from "./branded";
 export type IRDocument = {
-  id: string;
+  id: DocumentId;
   fiscalYear: number;
   quarter: number;
   financials?: Financial[];

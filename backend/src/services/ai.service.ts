@@ -342,3 +342,124 @@ ${text.slice(0, 8000)}
     }
   }
 };
+
+export const getGuidanse = async (text: string) => {
+  const prompt = `
+あなたは米国企業の決算資料（8-K、Earnings Release、プレスリリース等）から
+業績ガイダンス（将来予想）を抽出する専門アシスタントです。
+
+以下のドキュメントテキストから、経営陣が言及している業績ガイダンス（予想数値）を
+すべて抽出し、指定のJSON形式で出力してください。
+
+## 抽出対象
+- 売上（Revenue）
+- GAAP EPS / Non-GAAP EPS
+- 純利益（Net Income）
+- 営業利益率（Operating Margin）
+- 調整後EBITDA
+- その他、経営陣が明示的に数値目標として言及しているもの
+
+## 抽出ルール
+
+1. **対象期間の特定**
+   - ガイダンスが「どの期間」に対するものかを必ず特定してください
+   - 例：「fiscal 2026 third quarter」→ targetFiscalYear: 2026, targetQuarter: 3, targetPeriodType: "Q"
+   - 例：「full year fiscal 2026」→ targetFiscalYear: 2026, targetQuarter: null, targetPeriodType: "FY"
+   - 期間が曖昧で特定できない場合は targetPeriodType を "UNKNOWN" とし、confidence を "low" にしてください
+
+2. **数値の抽出**
+   - レンジ表記（例："$10.0 billion to $10.5 billion"）→ low, high 両方を抽出
+   - 単一値表記（例："approximately $10.3 billion"）→ low = high = その値
+   - "approximately" "around" 等の曖昧表現がある場合は isApproximate: true としてください
+   - 単位（billion/million）を数値に正規化してください（すべてUSDの実数値、例：10.3 billion → 10300000000）
+   - パーセンテージ表記のガイダンス（例：成長率〇%）は growthRatePct フィールドに格納してください
+
+3. **修正の言及**
+   - 「raised」「increased」「narrowed」「lowered」「reiterated」「reaffirmed」などの
+     ガイダンス変更を示す文言があれば、それを managementCommentOnChange に原文の要旨（日本語要約）で記録してください
+   - ※ この時点では前回値との数値比較は行わず、経営陣の発言のみを記録してください（比較は別処理で行います）
+
+4. **定性的コメントのみの場合**
+   - 数値が一切なく定性的な言及（例："we remain confident in continued growth"）のみの場合は、
+     quantitative: false とし、qualitativeSummary に日本語で要約してください
+
+5. **不明確な場合**
+   - 該当箇所が見つからない場合は空配列 [] を返してください
+   - 数値の抽出に自信が持てない場合は confidence を "low" にしてください（絶対に数値を推測・捏造しないこと）
+
+## 出力形式（JSON以外の文章は一切出力しないこと）
+
+{
+  "guidances": [
+    {
+      "metric": "revenue" | "epsGaap" | "epsNonGaap" | "netIncome" | "operatingMargin" | "adjustedEbitda" | "other",
+      "metricLabel": "抽出元の原文表現（英語のまま）",
+      "targetFiscalYear": number,
+      "targetQuarter": number | null,
+      "targetPeriodType": "Q" | "FY" | "UNKNOWN",
+      "low": number | null,
+      "high": number | null,
+      "growthRatePct": number | null,
+      "isApproximate": boolean,
+      "quantitative": boolean,
+      "qualitativeSummary": "string | null（定性コメントの日本語要約）",
+      "managementCommentOnChange": "string | null（修正に関する発言の日本語要約）",
+      "sourceQuote": "抽出元の原文（該当箇所そのまま、100文字以内）",
+      "confidence": "high" | "medium" | "low"
+    }
+  ]
+}
+
+# 入力テキスト
+"""
+${text.slice(0, 8000)}
+"""
+`;
+  try {
+    const res = await openai.chat.completions.create({
+      model: "gpt-5.4-mini",
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+    });
+    const content = res.choices[0].message.content ?? "";
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(content);
+    } catch (e) {
+      console.error("JSON parse error:", content);
+      return {
+        success: false,
+        error: "AIレスポンスの解析に失敗しました。もう一度お試しください。",
+      };
+    }
+    return { success: true, data: parsed };
+  } catch (err) {
+    if (err instanceof OpenAI.APIError) {
+      if (err.status === 429) {
+        console.error("レート制限またはクレジット不足:", err.message);
+        // ユーザーへの通知やリトライ処理をここに
+        return {
+          success: false,
+          error: "レート制限またはクレジット不足です。",
+        };
+      } else {
+        console.error(`APIエラー (status: ${err.status}):`, err.message);
+        return {
+          success: false,
+          error:
+            "リクエストが混み合っています。しばらく待ってから再度お試しください。",
+        };
+      }
+    } else {
+      console.error("予期しないエラー:", err);
+      return {
+        success: false,
+        error: "予期しないエラーが発生しました。",
+      };
+    }
+  }
+};

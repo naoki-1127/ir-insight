@@ -10,21 +10,6 @@ export type AuthCredentials = {
 export type AuthResponse = { accessToken: string } | { error: string };
 export type LogoutResponse = { message: string } | { error: string };
 
-interface RefreshToken {
-  id: number;
-  token: string;
-  userId: string | null;
-  createdAt: Date;
-  expiredAt: Date;
-}
-
-interface AuthUser {
-  id: string;
-  email: string;
-  password: string;
-  createdAt: Date;
-}
-
 const SECRET = process.env.JWT_SECRET;
 if (!SECRET) {
   throw new Error("JWT_SECRET is not set");
@@ -58,10 +43,8 @@ export const generateTokens = async (userId: string) => {
   return { accessToken, refreshToken };
 };
 
-export const getRefreshToken = async (
-  refreshToken: string,
-): Promise<RefreshToken> => {
-  const stored: RefreshToken = await prisma.refreshToken.findUnique({
+export const getRefreshToken = async (refreshToken: string) => {
+  const stored = await prisma.refreshToken.findUnique({
     where: { token: refreshToken },
   });
   if (!stored) {
@@ -78,11 +61,8 @@ export const deleteRefreshToken = async (refreshToken: string) => {
     where: { token: refreshToken },
   });
 };
-export const registerUser = async (
-  email: string,
-  password: string,
-): Promise<AuthUser> => {
-  const checkUser: AuthUser = await getUser(email);
+export const registerUser = async (email: string, password: string) => {
+  const checkUser = await getUser(email);
   if (checkUser) {
     throw new ConflictError(`${email} はすでに登録されています`);
   }
@@ -96,11 +76,8 @@ export const registerUser = async (
   return newUser;
 };
 
-export const loginUser = async (
-  email: string,
-  password: string,
-): Promise<AuthUser> => {
-  const checkUser: AuthUser = await getUser(email);
+export const loginUser = async (email: string, password: string) => {
+  const checkUser = await getUser(email);
   if (!checkUser) {
     throw new AuthenticateError(`メールアドレスが存在しません`);
   }

@@ -5,7 +5,7 @@ import cookieParser from "cookie-parser";
 import authRoutes from "./routes/auth.js";
 import irRoutes from "./routes/ir.js";
 import companyRoutes from "./routes/company.js";
-import "./queues/earningsWorker";
+import "./queues/earningsWorker.js";
 
 const app = express();
 app.use(
