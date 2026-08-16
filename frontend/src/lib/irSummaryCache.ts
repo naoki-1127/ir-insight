@@ -1,13 +1,14 @@
+import type { CompanyId, DocumentId } from "../types/branded";
 import type { CachedIRSummary, IRSummaryText } from "../types/ir";
 
 const CACHE_KEY_PREFIX = "ir-summary:";
 const CACHE_VERSION = "v1";
 
-function getCacheKey(companyId: string): string {
+function getCacheKey(companyId: CompanyId): string {
   return `${CACHE_KEY_PREFIX}${CACHE_VERSION}:${companyId}`;
 }
 
-export function readCache(companyId: string): CachedIRSummary | null {
+export function readCache(companyId: CompanyId): CachedIRSummary | null {
   if (typeof window === "undefined") return null;
 
   try {
@@ -29,8 +30,8 @@ export function readCache(companyId: string): CachedIRSummary | null {
 }
 
 export function writeCache(
-  companyId: string,
-  documentId: string,
+  companyId: CompanyId,
+  documentId: DocumentId,
   data: IRSummaryText,
 ): void {
   if (typeof window === "undefined") return;

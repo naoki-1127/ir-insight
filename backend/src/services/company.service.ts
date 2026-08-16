@@ -1,16 +1,29 @@
 import { redis } from "../lib/redis.js";
 import { prisma } from "../lib/prisma.js";
+import type { CompanyId } from "../types/branded.js";
+import { asCompanyId } from "../types/branded.js";
 
 const TICKER_MAP_KEY = "ticker_map";
 const TICKER_MAP_TTL = 86400; // 24時間
 
-interface TickerEntry {
-  cik_str: number;
+type TickerEntry = {
+  cik_str: string;
   ticker: string;
   title: string;
-}
-
-type CompanyId = { companyId: string };
+};
+type Company = {
+  cik: string;
+  name: string;
+  ticker: string;
+};
+export type RegisteredCompany = {
+  id: CompanyId;
+  cik: string;
+  ticker: string;
+  name: string;
+  market: "US";
+  createdAt: string;
+};
 
 const fetchTickerMap = async (): Promise<TickerEntry[]> => {
   const cached = await redis.get(TICKER_MAP_KEY);
@@ -30,7 +43,7 @@ const fetchTickerMap = async (): Promise<TickerEntry[]> => {
   return entries;
 };
 
-export const searchCompanies = async (query: string) => {
+export const searchCompanies = async (query: string): Promise<Company[]> => {
   const entries = await fetchTickerMap();
   const q = query.toUpperCase();
 
@@ -49,7 +62,7 @@ export const registerCompany = async (
   cik: string,
   ticker: string,
   name: string,
-) => {
+): Promise<RegisteredCompany> => {
   const company = await prisma.company.upsert({
     where: { ticker },
     update: {},
@@ -60,7 +73,14 @@ export const registerCompany = async (
       market: "US",
     },
   });
-  return company;
+  return {
+    id: asCompanyId(company.id),
+    cik: company.cik,
+    ticker: company.ticker,
+    name: company.name,
+    market: "US",
+    createdAt: company.createdAt.toISOString(), // Date → string に変換
+  };
 };
 
 export const getCompaniesWithDocument = async () => {

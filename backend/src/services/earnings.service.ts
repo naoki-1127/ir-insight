@@ -2,6 +2,11 @@ import { earningsQueue } from "../queues/earningsQueue.js";
 import { prisma } from "../lib/prisma.js";
 import { getLatest8k, get8k } from "./edgar.service.js";
 
+export type checkNew8k = {
+  checked: number;
+  enqueued: number;
+};
+
 //企業が登録された時に走る処理
 export const enqueue8KJobs = async (companyId: string, cik: string) => {
   const targets = await get8k(cik);
@@ -14,7 +19,7 @@ export const enqueue8KJobs = async (companyId: string, cik: string) => {
 };
 
 //batchから呼ばれる関数
-export const checkAllCompaniesForNew8K = async () => {
+export const checkAllCompaniesForNew8K = async (): Promise<checkNew8k> => {
   try {
     const companies = await prisma.company.findMany({
       select: { id: true, ticker: true, cik: true },

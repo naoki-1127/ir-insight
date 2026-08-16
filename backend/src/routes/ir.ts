@@ -33,12 +33,12 @@ type SummaryText = {
     text: string;
     sentiment: "positive" | "negative" | "neutral";
   }[];
+  fiscalYear: number;
+  quarter: number;
 };
 export type SummaryTextResponse =
   | {
       success: true;
-      fiscalYear: number;
-      quarter: number;
       data: SummaryText;
     }
   | {
@@ -131,9 +131,11 @@ router.get(
       }
       return res.json({
         success: true,
-        data: result.data,
-        fiscalYear: document.fiscalYear,
-        quarter: document.quarter,
+        data: {
+          ...result.data,
+          fiscalYear: document.fiscalYear,
+          quarter: document.quarter,
+        },
       });
     } catch (err) {
       console.error(err);
