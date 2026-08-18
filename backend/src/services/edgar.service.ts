@@ -86,6 +86,27 @@ export const get8k = async (cik: string) => {
   return targets;
 };
 
+/**
+ * 指定したCIK（EDGAR企業識別番号）の企業について、
+ * Item 2.02（決算発表）を含む最新の8-Kを取得する。
+ *
+ * SEC EDGARのSubmissions APIから提出書類一覧を取得し、
+ * `form === "8-K"` かつ `items` に "2.02"（決算に関する結果の開示）を
+ * 含む最初の（＝最新の）ものを返す。
+ *
+ * @param cik - SEC EDGARの企業識別番号（Central Index Key）。10桁ゼロ埋め文字列を想定
+ * @returns 見つかった最新の8-Kのファイリング情報（accessionNumber, filingDate, primaryDocument）。
+ *          該当する8-Kが1件も見つからない場合は `null`
+ * @throws {Error} SEC APIのレスポンスが200系以外のステータスを返した場合
+ *
+ * @example
+ * ```ts
+ * const filing = await getLatest8k("0001579428"); // Axsome Therapeutics
+ * if (filing) {
+ *   console.log(filing.primaryDocument); // "axsm-ex99_1.htm"
+ * }
+ * ```
+ */
 export const getLatest8k = async (cik: string) => {
   const res = await submissionsList(cik);
   if (!res.ok) throw new Error(`SEC API ${res.status}`);
