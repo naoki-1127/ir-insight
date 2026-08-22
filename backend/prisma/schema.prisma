@@ -21,6 +21,7 @@ model Company {
   ticker    String     @unique
   market    String
   createdAt DateTime   @default(now())
+  deletedAt DateTime?
   documents Document[]
   financials Financial[]
 }

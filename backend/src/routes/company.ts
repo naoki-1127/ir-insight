@@ -4,6 +4,7 @@ import {
   searchCompanies,
   registerCompany,
   deleteCompany,
+  restoreCompany,
   NotFoundError,
   type RegisteredCompany,
   getFinance,
@@ -13,7 +14,7 @@ import {
   checkAllCompaniesForNew8K,
   type checkNew8k,
 } from "../services/earnings.service.js";
-import type { CompanyId, DocumentId, FinancialId } from "../types/branded.js";
+import type { CompanyId } from "../types/branded.js";
 import { asCompanyId } from "../types/branded.js";
 
 const router = Router();
@@ -28,49 +29,13 @@ type CompanyBase = {
   ticker: string;
 };
 
-type PeriodType = "Q";
-
-type BaseEntity = {
-  createdAt: string;
-};
-
-type Document = BaseEntity & {
-  id: DocumentId;
-  title: string;
-  fileUrl: string;
-  companyId: CompanyId;
-  userId: null;
-  fiscalYear: number;
-  quarter: number;
-  periodType: PeriodType;
-};
-
-type Financial = BaseEntity & {
-  id: FinancialId;
-  companyId: CompanyId;
-  fiscalYear: number;
-  quarter: number;
-  periodType: PeriodType;
-  revenue: number;
-  netIncomeGaap: number;
-  netIncomeNonGaap: number;
-  documentId: DocumentId;
-};
-
-type Company = BaseEntity &
-  CompanyBase & {
-    id: CompanyId;
-    market: "US";
-    documents: Document[];
-    financials: Financial[];
-  };
-
 type CompanyBaseResponse = CompanyBase[] | { error: string };
 type DeleteCompanyResponse = { success: true } | { error: string };
 type RegisterCompanyResponse =
   | { company: RegisteredCompany }
   | { error: string };
 type CheckAllNew8KResponse = checkNew8k | { error: string };
+type RestoreCompanyResponse = { success: true } | { error: string };
 
 router.get(
   "/search",
@@ -145,6 +110,7 @@ router.post(
   },
 );
 
+// 論理削除（デフォルトのギャラリー一覧には出さないが、決算データは残す）
 router.delete(
   "/:id",
   authMiddleware,
@@ -159,6 +125,32 @@ router.delete(
       }
       const companyId = asCompanyId(id);
       await deleteCompany(companyId);
+      res.json({ success: true });
+    } catch (err) {
+      if (err instanceof NotFoundError) {
+        return res.status(404).json({ error: err.message });
+      }
+      console.error(err);
+      res.status(500).json({ error: "サーバーエラー" });
+    }
+  },
+);
+
+// 論理削除した銘柄をアーカイブから復元する
+router.post(
+  "/:id/restore",
+  authMiddleware,
+  async (
+    req: Request<{ id: string }>,
+    res: Response<RestoreCompanyResponse>,
+  ) => {
+    try {
+      const { id } = req.params;
+      if (!id) {
+        return res.status(400).json({ error: "idが指定されていません" });
+      }
+      const companyId = asCompanyId(id);
+      await restoreCompany(companyId);
       res.json({ success: true });
     } catch (err) {
       if (err instanceof NotFoundError) {

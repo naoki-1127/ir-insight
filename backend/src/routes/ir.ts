@@ -5,6 +5,7 @@ import { getGuidanse, summarizeIRText } from "../services/ai.service.js";
 import {
   getLatestFilingMeta,
   getCompaniesWithDocument,
+  getArchivedCompaniesWithDocument,
   getDocumentContent,
   getLatestFilingMeta2,
 } from "../services/company.service.js";
@@ -46,9 +47,15 @@ export type SummaryTextResponse =
       error: string;
     };
 
-// Symbol取得
+// Symbol取得（論理削除済みの銘柄は含まない）
 router.get("/companies", authMiddleware, async (_req, res) => {
   const data = await getCompaniesWithDocument();
+  return res.json(data);
+});
+
+// アーカイブ（論理削除済み）の銘柄一覧
+router.get("/companies/archived", authMiddleware, async (_req, res) => {
+  const data = await getArchivedCompaniesWithDocument();
   return res.json(data);
 });
 

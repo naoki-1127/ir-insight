@@ -65,7 +65,8 @@ export const registerCompany = async (
 ): Promise<RegisteredCompany> => {
   const company = await prisma.company.upsert({
     where: { ticker },
-    update: {},
+    // 過去に論理削除された銘柄を再登録した場合は復元する
+    update: { deletedAt: null },
     create: {
       cik: cik,
       ticker,
@@ -83,9 +84,39 @@ export const registerCompany = async (
   };
 };
 
+// 未削除（ギャラリー表示用）の銘柄一覧
 export const getCompaniesWithDocument = async () => {
   try {
     const data = await prisma.company.findMany({
+      where: { deletedAt: null },
+      include: {
+        documents: {
+          orderBy: [
+            {
+              fiscalYear: "desc",
+            },
+            {
+              quarter: "desc",
+            },
+          ],
+          include: {
+            financials: true,
+          },
+        },
+      },
+    });
+    return data;
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+// 論理削除済み（アーカイブ表示用）の銘柄一覧
+export const getArchivedCompaniesWithDocument = async () => {
+  try {
+    const data = await prisma.company.findMany({
+      where: { deletedAt: { not: null } },
+      orderBy: { deletedAt: "desc" },
       include: {
         documents: {
           orderBy: [
@@ -191,37 +222,38 @@ export const getDocumentContent = async (documentId: string) => {
   }
 };
 
+// 物理削除は行わず、deletedAtを立てるだけの論理削除。
+// 取得済みの決算（Document / DocumentContent / Financial）はそのまま残す。
 export const deleteCompany = async (id: CompanyId) => {
   const company = await prisma.company.findUnique({ where: { id } });
   if (!company) {
     throw new NotFoundError("Not found");
   }
+  console.log("削除：", id);
   try {
-    const document = await prisma.$transaction([
-      prisma.documentContent.deleteMany({
-        where: {
-          document: {
-            companyId: id,
-          },
-        },
-      }),
-      prisma.document.deleteMany({
-        where: {
-          companyId: id,
-        },
-      }),
-      prisma.financial.deleteMany({
-        where: {
-          companyId: id,
-        },
-      }),
-      prisma.company.delete({
-        where: {
-          id,
-        },
-      }),
-    ]);
-    return document;
+    const updated = await prisma.company.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+    return updated;
+  } catch (err) {
+    console.log(err);
+    throw new NotFoundError("Not found");
+  }
+};
+
+// 論理削除した銘柄をギャラリー表示に戻す
+export const restoreCompany = async (id: CompanyId) => {
+  const company = await prisma.company.findUnique({ where: { id } });
+  if (!company) {
+    throw new NotFoundError("Not found");
+  }
+  try {
+    const updated = await prisma.company.update({
+      where: { id },
+      data: { deletedAt: null },
+    });
+    return updated;
   } catch (err) {
     console.log(err);
     throw new NotFoundError("Not found");

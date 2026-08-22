@@ -7,6 +7,7 @@ export type EarningsJobData = {
   companyId: CompanyId;
   cik: string;
   accessionNumber: string;
+  ticker?: string;
 };
 
 export const earningsQueue = new Queue<EarningsJobData>("earnings", {

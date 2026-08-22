@@ -1,7 +1,7 @@
 import { earningsQueue } from "../queues/earningsQueue.js";
 import { prisma } from "../lib/prisma.js";
 import { getLatest8k, get8k } from "./edgar.service.js";
-import { CompanyId } from "../types/branded.js";
+import { asCompanyId, CompanyId } from "../types/branded.js";
 
 export type checkNew8k = {
   checked: number;
@@ -22,7 +22,9 @@ export const enqueue8KJobs = async (companyId: CompanyId, cik: string) => {
 //batchから呼ばれる関数
 export const checkAllCompaniesForNew8K = async (): Promise<checkNew8k> => {
   try {
+    // 論理削除済みの銘柄は新着チェックの対象から除外する
     const companies = await prisma.company.findMany({
+      where: { deletedAt: null },
       select: { id: true, ticker: true, cik: true },
     });
     console.log(`[check-all] checking: ${companies.length} companies`);
@@ -45,7 +47,7 @@ export const checkAllCompaniesForNew8K = async (): Promise<checkNew8k> => {
         }
         // 新着をキューに積む
         await earningsQueue.add("process-8k", {
-          companyId: company.id,
+          companyId: asCompanyId(company.id),
           cik: company.cik,
           ticker: company.ticker,
           ...latestFiling,

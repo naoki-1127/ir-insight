@@ -5,9 +5,8 @@ import * as cheerio from "cheerio";
 import { prisma } from "../lib/prisma.js";
 import { redis } from "../lib/redis.js";
 
-type CompanyId = { companyId: string };
 export type EarningsJobData = {
-  companyId: CompanyId;
+  companyId: string;
   cik: string;
   accessionNumber: string;
 };
