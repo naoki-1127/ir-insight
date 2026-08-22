@@ -320,9 +320,7 @@ watch(
               class="bg-[#36393b] p-3 rounded"
               @click="getDocumentContent(doc.id)"
             >
-              <p class="text-xs font-bold">
-                {{ group.year }}年度　第{{ doc.quarter }}四半期決算発表
-              </p>
+              <p class="text-xs font-bold">第{{ doc.quarter }}四半期決算発表</p>
             </div>
           </div>
         </div>

@@ -1,28 +1,35 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
+import { ArrowLeft } from "@lucide/vue";
 import api from "../api/axios";
 import Header from "../components/Header.vue";
-import Sidebar from "../components/Sidebar.vue";
+import GalleryView from "../components/main/GalleryView.vue";
+import ArchiveView from "../components/main/ArchiveView.vue";
 import UploadView from "../components/main/UploadView.vue";
 import CompanyView from "../components/main/CompanyView.vue";
 import DocumentContentView from "../components/main/DocumentContentView.vue";
 import type { Company } from "../types/company";
 import type { CompanyId, DocumentId } from "../types/branded";
-import { deleteCompanyData } from "../api/company.ts";
+import {
+  deleteCompanyData,
+  restoreCompanyData,
+  getArchivedCompanies,
+} from "../api/company.ts";
 
 onMounted(() => {
   getCompanies();
 });
 
-type ViewMode = "upload" | "company" | "document";
+type ViewMode = "gallery" | "upload" | "company" | "document" | "archive";
 
-const currentView = ref<ViewMode>("upload");
+const currentView = ref<ViewMode>("gallery");
 const selectedCompanyId = ref<CompanyId | null>(null);
 const selectCompany = (id: CompanyId) => {
   selectedCompanyId.value = id;
   currentView.value = "company";
 };
 const companies = ref<Company[]>([]);
+const archivedCompanies = ref<Company[]>([]);
 const document = ref<any>(null);
 const file = ref<File | null>(null);
 
@@ -30,6 +37,11 @@ const openUpload = () => {
   file.value = null;
   selectedCompanyId.value = null;
   currentView.value = "upload";
+};
+
+const backToGallery = () => {
+  selectedCompanyId.value = null;
+  currentView.value = "gallery";
 };
 
 const deleteCompany = async (companyId: CompanyId) => {
@@ -42,7 +54,31 @@ const deleteCompany = async (companyId: CompanyId) => {
   }
   await getCompanies(); // 一覧を再取得
   selectedCompanyId.value = null;
-  currentView.value = "upload";
+  currentView.value = "gallery";
+};
+
+const showArchive = async () => {
+  currentView.value = "archive";
+  await getArchivedCompaniesList();
+};
+
+const restoreCompany = async (companyId: CompanyId) => {
+  if (!companyId) return;
+  try {
+    await restoreCompanyData(companyId);
+  } catch (err: any) {
+    console.error(err);
+    // 必要なら alert やトースト
+  }
+  await Promise.all([getCompanies(), getArchivedCompaniesList()]);
+};
+
+const getArchivedCompaniesList = async () => {
+  try {
+    archivedCompanies.value = await getArchivedCompanies();
+  } catch (err: any) {
+    console.error("アーカイブ一覧の取得に失敗しました:", err);
+  }
 };
 
 const getDocumentContent = async (documentId: DocumentId) => {
@@ -72,34 +108,47 @@ const getCompanies = async () => {
   >
     <!-- Header -->
     <Header class="shrink-0" />
-    <!-- Main Layout -->
-    <div class="flex flex-1 min-h-0">
-      <!-- Sidebar -->
-      <Sidebar
+    <!-- Main Content -->
+    <main class="flex-1 min-h-0 overflow-y-auto p-6">
+      <button
+        v-if="currentView !== 'gallery'"
+        type="button"
+        class="flex items-center gap-1 text-xs text-gray-400 hover:text-white mb-4"
+        @click="backToGallery"
+      >
+        <ArrowLeft class="w-4 h-4" />
+        ギャラリーに戻る
+      </button>
+
+      <GalleryView
+        v-if="currentView === 'gallery'"
         :companies="companies"
-        :selectedCompanyId="selectedCompanyId"
         @select="selectCompany"
         @upload="openUpload"
+        @delete-company="deleteCompany"
+        @show-archive="showArchive"
       />
-      <!-- Main Content -->
-      <main class="flex-1 min-h-0 overflow-y-auto p-6">
-        <UploadView
-          v-if="currentView === 'upload'"
-          @company-selected="getCompanies"
-        />
-        <CompanyView
-          v-else-if="currentView === 'company'"
-          :company-id="selectedCompanyId"
-          :companies="companies"
-          @delete-company="deleteCompany"
-          @get-document-content="getDocumentContent"
-        />
-        <DocumentContentView
-          v-else-if="currentView === 'document'"
-          :document="document"
-          @select="selectCompany"
-        />
-      </main>
-    </div>
+      <ArchiveView
+        v-else-if="currentView === 'archive'"
+        :companies="archivedCompanies"
+        @restore-company="restoreCompany"
+      />
+      <UploadView
+        v-else-if="currentView === 'upload'"
+        @company-selected="getCompanies"
+      />
+      <CompanyView
+        v-else-if="currentView === 'company'"
+        :company-id="selectedCompanyId"
+        :companies="companies"
+        @delete-company="deleteCompany"
+        @get-document-content="getDocumentContent"
+      />
+      <DocumentContentView
+        v-else-if="currentView === 'document'"
+        :document="document"
+        @select="selectCompany"
+      />
+    </main>
   </div>
 </template>
