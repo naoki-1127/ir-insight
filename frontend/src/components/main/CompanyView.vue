@@ -46,11 +46,9 @@ const groupedRevenueYoY = computed(() => {
   const financials = company.value.documents.flatMap(
     (doc) => doc.financials ?? [],
   );
-  console.log(financials);
   const map = new Map(
     financials.map((f) => [`${f.fiscalYear}-${f.fiscalQuarter}`, f]),
   );
-  console.log(map);
   return financials.map((current) => {
     const prevKey = `${current.fiscalYear - 1}-${current.fiscalQuarter}`;
     const previous = map.get(prevKey);

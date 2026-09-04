@@ -49,7 +49,6 @@ const getDocumentContent = async (documentId: DocumentId) => {
   if (!documentId) return;
   try {
     const res = await api.get(`/ir/detail/${documentId}`);
-    console.log(res.data);
     document.value = res.data;
     currentView.value = "document";
   } catch (err: any) {

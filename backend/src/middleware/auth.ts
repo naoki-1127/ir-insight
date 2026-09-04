@@ -1,7 +1,10 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
-const SECRET = process.env.JWT_SECRET || "secret-key";
+const SECRET = process.env.JWT_SECRET;
+if (!SECRET) {
+  throw new Error("JWT_SECRET is not set");
+}
 
 export type AuthRequest<T = any> = Request<{}, {}, T> & {
   userId?: string;
@@ -20,8 +23,6 @@ export const authMiddleware = (
   const token = authHeader.split(" ")[1];
   try {
     const payload = jwt.verify(token, SECRET) as { userId: string };
-    console.log("トークン" + token);
-    console.log("payload" + JSON.stringify(payload, null, 2));
     req.userId = payload.userId;
     next();
   } catch (err) {

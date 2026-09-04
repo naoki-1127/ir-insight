@@ -148,7 +148,6 @@ export const getLatestFilingMeta2 = async (ticker: CompanyId) => {
         },
       },
     });
-    console.log("check");
     return data;
   } catch (err) {
     console.log(err);
@@ -168,7 +167,6 @@ export const getFinance = async (ticker: CompanyId) => {
         },
       ],
     });
-    console.log("check");
     return { data: data };
   } catch (err) {
     console.log(err);
