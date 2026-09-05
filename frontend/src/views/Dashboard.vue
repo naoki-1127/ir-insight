@@ -138,7 +138,7 @@ const getCompanies = async () => {
         @company-selected="getCompanies"
       />
       <CompanyView
-        v-else-if="currentView === 'company'"
+        v-else-if="currentView === 'company' && selectedCompanyId"
         :company-id="selectedCompanyId"
         :companies="companies"
         @delete-company="deleteCompany"
