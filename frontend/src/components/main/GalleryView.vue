@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { Plus, Building2, FileText, Trash2, Search, Archive } from "@lucide/vue";
+import {
+  Plus,
+  Building2,
+  FileText,
+  Trash2,
+  Search,
+  Archive,
+} from "@lucide/vue";
 import type { Company } from "../../types/company";
 import type { CompanyId } from "../../types/branded";
 

@@ -21,7 +21,7 @@ const handleLogout = () => {
       @click="handleLogout"
       class="text-sm text-gray-400 hover:text-white"
     >
-      Logout
+      ログアウト
     </button>
   </header>
 </template>

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import DOMPurify from "dompurify";
-import type { CompanyId, DocumentId } from "../../types/branded";
 const props = defineProps<{
   document: any;
 }>();
@@ -12,17 +11,10 @@ const sanitizedHtml = computed(() => {
     ADD_TAGS: ["table", "thead", "tbody", "tr", "th", "td"],
   });
 });
-
-const goToCompany = (id: CompanyId) => {
-  emit("select", id);
-};
 </script>
 
 <template>
   <div>
-    <h1 @click="goToCompany(document.company.id)">
-      {{ document.company.name }}
-    </h1>
     <div>
       <div class="bg-white" v-html="sanitizedHtml"></div>
     </div>

@@ -5,3 +5,9 @@
 <template>
   <router-view />
 </template>
+
+<style>
+button {
+  cursor: pointer;
+}
+</style>
