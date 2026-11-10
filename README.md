@@ -1,4 +1,4 @@
-# Growth Earnings Screener
+# IR Insight
 
 ## 概要
 

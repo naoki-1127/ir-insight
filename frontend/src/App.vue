@@ -10,4 +10,7 @@
 button {
   cursor: pointer;
 }
+body {
+  background-color: #0e0e0e;
+}
 </style>
