@@ -29,3 +29,19 @@ export const authMiddleware = (
     return res.status(401).json({ error: "Invalid token" });
   }
 };
+
+// MCPサーバーなど、ユーザーを持たない内部クライアント向け。
+// JWT の代わりに x-api-key ヘッダーの共有シークレット(MCP_API_KEY)でも通す。
+// 全ルートに付けると削除などもAPIキーで可能になるため、必要なルートにだけ付けること。
+export const authOrApiKeyMiddleware = (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  const apiKey = process.env.MCP_API_KEY;
+  const provided = req.headers["x-api-key"];
+  if (apiKey && typeof provided === "string" && provided === apiKey) {
+    return next();
+  }
+  return authMiddleware(req, res, next);
+};

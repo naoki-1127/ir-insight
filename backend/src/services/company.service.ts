@@ -47,8 +47,15 @@ export const searchCompanies = async (query: string): Promise<Company[]> => {
   const entries = await fetchTickerMap();
   const q = query.toUpperCase();
 
-  return entries
-    .filter((e) => e.ticker.startsWith(q) || e.title.toUpperCase().includes(q))
+  // ティッカー完全一致は件数上限で切られないよう先頭に出す
+  const exact = entries.filter((e) => e.ticker === q);
+  const partial = entries.filter(
+    (e) =>
+      e.ticker !== q &&
+      (e.ticker.startsWith(q) || e.title.toUpperCase().includes(q)),
+  );
+
+  return [...exact, ...partial]
     .slice(0, 6)
     .map((e) => ({
       cik: `CIK${String(e.cik_str).padStart(10, "0")}`,

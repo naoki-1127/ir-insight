@@ -1,5 +1,8 @@
 import { Router, Request, Response } from "express";
-import { authMiddleware } from "../middleware/auth.js";
+import {
+  authMiddleware,
+  authOrApiKeyMiddleware,
+} from "../middleware/auth.js";
 import {
   searchCompanies,
   registerCompany,
@@ -39,7 +42,7 @@ type RestoreCompanyResponse = { success: true } | { error: string };
 
 router.get(
   "/search",
-  authMiddleware,
+  authOrApiKeyMiddleware,
   async (
     req: Request<{}, {}, {}, SearchQuery>,
     res: Response<CompanyBaseResponse>,
@@ -93,7 +96,7 @@ router.get(
 // POST /api/companies
 router.post(
   "/",
-  authMiddleware,
+  authOrApiKeyMiddleware,
   async (
     req: Request<{}, {}, CompanyBase>,
     res: Response<RegisterCompanyResponse>,
