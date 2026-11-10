@@ -32,10 +32,20 @@ services:
     depends_on:
       - db
       - redis
+      - edgar-checker
     environment:
       DATABASE_URL: ${DATABASE_URL}
       REDIS_HOST: ${REDIS_HOST}
       REDIS_PORT: ${REDIS_PORT}
+      EDGAR_CHECKER_URL: ${EDGAR_CHECKER_URL}
+
+  edgar-checker:
+    build:
+      context: .
+      dockerfile: edgar-checker/Dockerfile
+    container_name: edgar_checker
+    environment:
+      SEC_USER_AGENT: ${SEC_USER_AGENT}
 
   batch:
     build: ./batch

@@ -1,6 +1,7 @@
 import { earningsQueue } from "../queues/earningsQueue.js";
 import { prisma } from "../lib/prisma.js";
-import { getLatest8k, get8k } from "./edgar.service.js";
+import { get8k } from "./edgar.service.js";
+import { checkLatestFilings } from "./edgarChecker.client.js";
 import { asCompanyId, CompanyId } from "../types/branded.js";
 
 export type checkNew8k = {
@@ -20,6 +21,8 @@ export const enqueue8KJobs = async (companyId: CompanyId, cik: string) => {
 };
 
 //batchから呼ばれる関数
+//EDGARへの問い合わせ(IOバウンドな部分)はedgar-checker(Go)側で並行実行させ、
+//ここではDB存在チェックとキュー投入だけを行う
 export const checkAllCompaniesForNew8K = async (): Promise<checkNew8k> => {
   try {
     // 論理削除済みの銘柄は新着チェックの対象から除外する
@@ -28,37 +31,55 @@ export const checkAllCompaniesForNew8K = async (): Promise<checkNew8k> => {
       select: { id: true, ticker: true, cik: true },
     });
     console.log(`[check-all] checking: ${companies.length} companies`);
+    if (companies.length === 0) {
+      return { checked: 0, enqueued: 0 };
+    }
+
+    const results = await checkLatestFilings(
+      companies.map((c) => ({
+        companyId: c.id,
+        cik: c.cik,
+        ticker: c.ticker,
+      })),
+    );
+
     let enqueued = 0;
-    for (const company of companies) {
+    for (const result of results) {
+      if (result.error) {
+        console.error(
+          `[check-all] fetch error: ${result.ticker} ${result.error}`,
+        );
+        continue;
+      }
+      const latestFiling = result.latestFiling;
+      if (!latestFiling) continue;
+
       try {
-        console.log(`[check-all] start: ${company.ticker}`);
-        // item 2.02 の8-Kを直近1件だけ取得
-        let latestFiling = await getLatest8k(company.cik);
-        if (!latestFiling) continue;
         // DBに既存かチェック
         const exists = await prisma.document.findFirst({
           where: { title: latestFiling.accessionNumber },
         });
         if (exists) {
           console.log(
-            `[check-all] skip: ${company.ticker} ${latestFiling.accessionNumber}`,
+            `[check-all] skip: ${result.ticker} ${latestFiling.accessionNumber}`,
           );
           continue;
         }
+
         // 新着をキューに積む
         await earningsQueue.add("process-8k", {
-          companyId: asCompanyId(company.id),
-          cik: company.cik,
-          ticker: company.ticker,
+          companyId: asCompanyId(result.companyId),
+          cik: result.cik,
+          ticker: result.ticker,
           ...latestFiling,
         });
 
         enqueued++;
         console.log(
-          `[check-all] enqueued: ${company.ticker} ${latestFiling.accessionNumber}`,
+          `[check-all] enqueued: ${result.ticker} ${latestFiling.accessionNumber}`,
         );
       } catch (err: any) {
-        console.error(`[check-all] error: ${company.ticker} ${e.message}`);
+        console.error(`[check-all] error: ${result.ticker} ${err.message}`);
       }
     }
     return { checked: companies.length, enqueued };

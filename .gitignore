@@ -2,3 +2,7 @@
 .env
 !.env.example
 CLAUDE.local.md
+
+# Goのビルド成果物
+edgar-checker/edgar-checker
+mcp-server/ticker

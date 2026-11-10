@@ -26,6 +26,9 @@ services:
       - db
       - redis
 
+  edgar-checker:
+    restart: always
+
   batch:
     restart: always
 

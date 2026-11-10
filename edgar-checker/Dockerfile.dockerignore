@@ -1,0 +1,5 @@
+# ルートをコンテキストにするので、必要なものだけ送る
+*
+!go.mod
+!go.sum
+!edgar-checker/*.go
