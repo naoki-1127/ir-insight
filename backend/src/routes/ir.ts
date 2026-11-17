@@ -1,6 +1,6 @@
 // src/routes/todo.ts
 import { Request, Response, Router } from "express";
-import { authMiddleware } from "../middleware/auth.js";
+import { authMiddleware, authOrApiKeyMiddleware } from "../middleware/auth.js";
 import { getGuidanse, summarizeIRText } from "../services/ai.service.js";
 import {
   getLatestFilingMeta,
@@ -48,7 +48,7 @@ export type SummaryTextResponse =
     };
 
 // Symbol取得（論理削除済みの銘柄は含まない）
-router.get("/companies", authMiddleware, async (_req, res) => {
+router.get("/companies", authOrApiKeyMiddleware, async (_req, res) => {
   const data = await getCompaniesWithDocument();
   return res.json(data);
 });

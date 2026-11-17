@@ -209,3 +209,8 @@ Earnings -
   `docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env.local up`
 - 本番
   `docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up -d`
+
+## MCPサーバ　デバッグ用コマンド
+
+リポジトリのルートで実行する。
+npx @modelcontextprotocol/inspector go run ./mcp-server
