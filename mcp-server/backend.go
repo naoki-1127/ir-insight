@@ -54,6 +54,27 @@ type RegisteredCompany struct {
 	CreatedAt string `json:"createdAt"`
 }
 
+type Financial struct {
+}
+
+type Document struct {
+	ID         string      `json:"id"`
+	FiscalYear int         `json:"fiscalYear"`
+	Quarter    int         `json:"quarter"`
+	Financials []Financial `json:"financials"`
+}
+
+type MyCompany struct {
+	ID        string     `json:"id"`
+	Ticker    string     `json:"ticker"`
+	Name      string     `json:"name"`
+	Documents []Document `json:"documents"`
+}
+
+type MyCompaniesOutput struct {
+	Companies []MyCompany `json:"companies"`
+}
+
 func (c *backendClient) do(ctx context.Context, method, path string, body any, out any) error {
 	var reqBody io.Reader
 	if body != nil {
@@ -100,6 +121,12 @@ func (c *backendClient) registerCompany(ctx context.Context, company Company) (R
 	}
 	err := c.do(ctx, http.MethodPost, "/api/companies", company, &out)
 	return out.Company, err
+}
+
+func (c *backendClient) getMyCompanies(ctx context.Context) (MyCompaniesOutput, error) {
+	var companies []MyCompany
+	err := c.do(ctx, http.MethodGet, "/ir/companies", nil, &companies)
+	return MyCompaniesOutput{Companies: companies}, err
 }
 
 func truncate(s string, n int) string {

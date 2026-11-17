@@ -24,6 +24,10 @@ func main() {
 		Name:        "register_company",
 		Description: "米国株のティッカーを指定して企業を登録する。登録すると直近2年分の決算(8-K Item 2.02)の取得・要約が始まる。",
 	}, backend.handleRegisterCompany)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "get_company",
+		Description: "自分のアカウントに登録されている企業を登録する。",
+	}, backend.handleGetMyCompanies)
 
 	err = server.Run(context.Background(), &mcp.StdioTransport{})
 	if err != nil {
@@ -83,4 +87,10 @@ func (c *backendClient) handleRegisterCompany(ctx context.Context, _ *mcp.CallTo
 		return nil, RegisterCompanyOutput{}, err
 	}
 	return nil, RegisterCompanyOutput{Company: registered}, nil
+}
+
+// handleGetMyCompanies は 自分が登録している銘柄をリストで返す
+func (c *backendClient) handleGetMyCompanies(ctx context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
+	candidates, err := c.getMyCompanies(ctx)
+	return nil, candidates, err
 }
