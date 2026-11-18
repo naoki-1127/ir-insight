@@ -58,92 +58,83 @@ export const searchCompanies = async (query: string): Promise<Company[]> => {
   return [...exact, ...partial]
     .slice(0, 6)
     .map((e) => ({
-      cik: `CIK${String(e.cik_str).padStart(10, "0")}`,
+      cik: toCik(e.cik_str),
       ticker: e.ticker,
       name: e.title,
     }));
 };
 
-// Companyテーブルに登録（既存の場合はスキップ）
+const toCik = (cikStr: string | number) =>
+  `CIK${String(cikStr).padStart(10, "0")}`;
+
+const documentsInclude = {
+  documents: {
+    orderBy: [{ fiscalYear: "desc" as const }, { quarter: "desc" as const }],
+    include: { financials: true },
+  },
+};
+
+// 銘柄をウォッチに登録する（ADR 0001）。
+// - ticker は EDGAR の企業一覧で解決し、実在する銘柄だけをマスタに入れる
+// - Company の列は EDGAR の値だけで埋め、利用者の入力は使わない
+// - マスタになければ追加し（遅延登録）、ウォッチを追加する。アーカイブ済みなら復元する
+// isNew はマスタに新しく追加されたかどうか。初回取得ジョブの投入要否に使う
 export const registerCompany = async (
-  cik: string,
+  userId: string,
   ticker: string,
-  name: string,
-): Promise<RegisteredCompany> => {
-  const company = await prisma.company.upsert({
-    where: { ticker },
-    // 過去に論理削除された銘柄を再登録した場合は復元する
-    update: { deletedAt: null },
-    create: {
-      cik: cik,
-      ticker,
-      name,
-      market: "US",
-    },
+): Promise<{ company: RegisteredCompany; isNew: boolean }> => {
+  const entries = await fetchTickerMap();
+  const entry = entries.find((e) => e.ticker === ticker.toUpperCase());
+  if (!entry) {
+    throw new NotFoundError(`EDGAR に存在しない ticker です: ${ticker}`);
+  }
+  const cik = toCik(entry.cik_str);
+
+  const { company, isNew } = await prisma.$transaction(async (tx) => {
+    const existing = await tx.company.findUnique({ where: { cik } });
+    // 同時登録で create が衝突しても cik の一意制約で重複はしない（片方がエラーになる）
+    const company =
+      existing ??
+      (await tx.company.create({
+        data: { cik, ticker: entry.ticker, name: entry.title, market: "US" },
+      }));
+    await tx.watchlist.upsert({
+      where: { userId_companyId: { userId, companyId: company.id } },
+      update: { archivedAt: null },
+      create: { userId, companyId: company.id },
+    });
+    return { company, isNew: !existing };
   });
+
   return {
-    id: asCompanyId(company.id),
-    cik: company.cik,
-    ticker: company.ticker,
-    name: company.name,
-    market: "US",
-    createdAt: company.createdAt.toISOString(), // Date → string に変換
+    company: {
+      id: asCompanyId(company.id),
+      cik: company.cik,
+      ticker: company.ticker,
+      name: company.name,
+      market: "US",
+      createdAt: company.createdAt.toISOString(), // Date → string に変換
+    },
+    isNew,
   };
 };
 
-// 未削除（ギャラリー表示用）の銘柄一覧
-export const getCompaniesWithDocument = async () => {
-  try {
-    const data = await prisma.company.findMany({
-      where: { deletedAt: null },
-      include: {
-        documents: {
-          orderBy: [
-            {
-              fiscalYear: "desc",
-            },
-            {
-              quarter: "desc",
-            },
-          ],
-          include: {
-            financials: true,
-          },
-        },
-      },
-    });
-    return data;
-  } catch (err) {
-    console.log(err);
-  }
+// ウォッチ中（ギャラリー表示用）の銘柄一覧
+export const getCompaniesWithDocument = async (userId: string) => {
+  return prisma.company.findMany({
+    where: { watchlists: { some: { userId, archivedAt: null } } },
+    include: documentsInclude,
+  });
 };
 
-// 論理削除済み（アーカイブ表示用）の銘柄一覧
-export const getArchivedCompaniesWithDocument = async () => {
-  try {
-    const data = await prisma.company.findMany({
-      where: { deletedAt: { not: null } },
-      orderBy: { deletedAt: "desc" },
-      include: {
-        documents: {
-          orderBy: [
-            {
-              fiscalYear: "desc",
-            },
-            {
-              quarter: "desc",
-            },
-          ],
-          include: {
-            financials: true,
-          },
-        },
-      },
-    });
-    return data;
-  } catch (err) {
-    console.log(err);
-  }
+// アーカイブ済み（アーカイブ表示用）の銘柄一覧。アーカイブした日時の新しい順
+export const getArchivedCompaniesWithDocument = async (userId: string) => {
+  const rows = await prisma.watchlist.findMany({
+    where: { userId, archivedAt: { not: null } },
+    orderBy: { archivedAt: "desc" },
+    include: { company: { include: documentsInclude } },
+  });
+  return rows.map((w) => w.company);
 };
 
 export const getLatestFilingMeta = async (ticker: CompanyId) => {
@@ -229,43 +220,28 @@ export const getDocumentContent = async (documentId: string) => {
   }
 };
 
-// 物理削除は行わず、deletedAtを立てるだけの論理削除。
-// 取得済みの決算（Document / DocumentContent / Financial）はそのまま残す。
-export const deleteCompany = async (id: CompanyId) => {
-  const company = await prisma.company.findUnique({ where: { id } });
-  if (!company) {
-    throw new NotFoundError("Not found");
-  }
-  console.log("削除：", id);
-  try {
-    const updated = await prisma.company.update({
-      where: { id },
-      data: { deletedAt: new Date() },
-    });
-    return updated;
-  } catch (err) {
-    console.log(err);
+// ウォッチをアーカイブする。マスタと取得済みの決算（Document / DocumentContent / Financial）はそのまま残す
+export const deleteCompany = (userId: string, id: CompanyId) =>
+  setArchivedAt(userId, id, new Date());
+
+// アーカイブしたウォッチをギャラリー表示に戻す
+export const restoreCompany = (userId: string, id: CompanyId) =>
+  setArchivedAt(userId, id, null);
+
+const setArchivedAt = async (
+  userId: string,
+  companyId: CompanyId,
+  archivedAt: Date | null,
+) => {
+  const { count } = await prisma.watchlist.updateMany({
+    where: { userId, companyId },
+    data: { archivedAt },
+  });
+  if (count === 0) {
     throw new NotFoundError("Not found");
   }
 };
 
-// 論理削除した銘柄をギャラリー表示に戻す
-export const restoreCompany = async (id: CompanyId) => {
-  const company = await prisma.company.findUnique({ where: { id } });
-  if (!company) {
-    throw new NotFoundError("Not found");
-  }
-  try {
-    const updated = await prisma.company.update({
-      where: { id },
-      data: { deletedAt: null },
-    });
-    return updated;
-  } catch (err) {
-    console.log(err);
-    throw new NotFoundError("Not found");
-  }
-};
 export class NotFoundError extends Error {
   constructor(message: string) {
     super(message);

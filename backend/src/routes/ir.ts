@@ -1,6 +1,10 @@
 // src/routes/todo.ts
 import { Request, Response, Router } from "express";
-import { authMiddleware, authOrApiKeyMiddleware } from "../middleware/auth.js";
+import {
+  authMiddleware,
+  authOrApiKeyMiddleware,
+  requireUserId,
+} from "../middleware/auth.js";
 import { getGuidanse, summarizeIRText } from "../services/ai.service.js";
 import {
   getLatestFilingMeta,
@@ -21,7 +25,6 @@ type LatestFilingMeta = {
   title: string;
   fileurl: string;
   companyId: CompanyId;
-  userId: null;
   fiscalYear: number;
   quarter: number;
   periodType: string;
@@ -47,16 +50,26 @@ export type SummaryTextResponse =
       error: string;
     };
 
-// Symbol取得（論理削除済みの銘柄は含まない）
-router.get("/companies", authOrApiKeyMiddleware, async (_req, res) => {
-  const data = await getCompaniesWithDocument();
-  return res.json(data);
+// ウォッチ中の銘柄一覧（アーカイブ済みは含まない）
+router.get("/companies", authOrApiKeyMiddleware, async (req, res) => {
+  try {
+    const data = await getCompaniesWithDocument(requireUserId(req));
+    return res.json(data);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "取得に失敗しました" });
+  }
 });
 
-// アーカイブ（論理削除済み）の銘柄一覧
-router.get("/companies/archived", authMiddleware, async (_req, res) => {
-  const data = await getArchivedCompaniesWithDocument();
-  return res.json(data);
+// アーカイブ済みの銘柄一覧
+router.get("/companies/archived", authMiddleware, async (req, res) => {
+  try {
+    const data = await getArchivedCompaniesWithDocument(requireUserId(req));
+    return res.json(data);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "取得に失敗しました" });
+  }
 });
 
 router.get(

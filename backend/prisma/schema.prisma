@@ -10,20 +10,38 @@ model User {
   id        String     @id @default(uuid())
   email     String     @unique
   password  String
-  createdAt DateTime   @default(now())
-  documents Document[]
+  createdAt  DateTime    @default(now())
+  watchlists Watchlist[]
 }
 
+// EDGAR 由来の銘柄マスタ（全ユーザ共有）。
+// 誰かがウォッチ登録した時点で追加し、ウォッチされなくなっても削除しない（ADR 0001）。
 model Company {
-  id        String     @id @default(uuid())
-  cik       String     @unique
-  name      String
-  ticker    String     @unique
-  market    String
-  createdAt DateTime   @default(now())
-  deletedAt DateTime?
-  documents Document[]
+  id         String      @id @default(uuid())
+  cik        String      @unique
+  name       String
+  ticker     String // 変更・再利用があるため一意にしない。識別子は cik
+  market     String
+  createdAt  DateTime    @default(now())
+  documents  Document[]
   financials Financial[]
+  watchlists Watchlist[]
+
+  @@index([ticker])
+}
+
+// ユーザごとのウォッチ銘柄。archivedAt が入っているものはアーカイブ（新着チェックの対象外）。
+model Watchlist {
+  id         String    @id @default(uuid())
+  userId     String
+  companyId  String
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company    Company   @relation(fields: [companyId], references: [id])
+
+  @@unique([userId, companyId])
+  @@index([companyId])
 }
 
 model Document {
@@ -32,9 +50,7 @@ model Document {
   fileUrl   String
   companyId String
   createdAt DateTime          @default(now())
-  userId    String?
   company   Company           @relation(fields: [companyId], references: [id])
-  user      User?             @relation(fields: [userId], references: [id])
   contents  DocumentContent[]
   fiscalYear Int
   quarter    Int?

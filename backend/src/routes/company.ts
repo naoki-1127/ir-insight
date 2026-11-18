@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import {
   authMiddleware,
   authOrApiKeyMiddleware,
+  requireUserId,
 } from "../middleware/auth.js";
 import {
   searchCompanies,
@@ -94,26 +95,41 @@ router.get(
 );
 
 // POST /api/companies
+// 銘柄をウォッチに登録する。cik と name は互換のため受け取るが使わず、ticker から EDGAR で解決する
 router.post(
   "/",
   authOrApiKeyMiddleware,
   async (
-    req: Request<{}, {}, CompanyBase>,
+    req: Request<{}, {}, Partial<CompanyBase>>,
     res: Response<RegisterCompanyResponse>,
   ) => {
-    const { cik, ticker, name } = req.body;
-    if (!cik || !ticker || !name) {
-      return res.status(400).json({ error: "cik, ticker, name は必須です" });
+    const { ticker } = req.body;
+    if (!ticker) {
+      return res.status(400).json({ error: "ticker は必須です" });
     }
-    const company = await registerCompany(cik, ticker, name);
-    enqueue8KJobs(company.id, cik).catch((e) =>
-      console.error(`[enqueue] failed: ${e.message}`),
-    );
-    res.json({ company });
+    try {
+      const { company, isNew } = await registerCompany(
+        requireUserId(req),
+        ticker,
+      );
+      // マスタに新しく入った銘柄だけ初回取得する。既存の銘柄は取得・要約済み
+      if (isNew) {
+        enqueue8KJobs(company.id, company.cik).catch((e) =>
+          console.error(`[enqueue] failed: ${e.message}`),
+        );
+      }
+      res.json({ company });
+    } catch (err) {
+      if (err instanceof NotFoundError) {
+        return res.status(404).json({ error: err.message });
+      }
+      console.error(err);
+      res.status(500).json({ error: "サーバーエラー" });
+    }
   },
 );
 
-// 論理削除（デフォルトのギャラリー一覧には出さないが、決算データは残す）
+// ウォッチのアーカイブ（デフォルトのギャラリー一覧には出さないが、決算データは残す）
 router.delete(
   "/:id",
   authMiddleware,
@@ -127,7 +143,7 @@ router.delete(
         return res.status(400).json({ error: "idが指定されていません" });
       }
       const companyId = asCompanyId(id);
-      await deleteCompany(companyId);
+      await deleteCompany(requireUserId(req), companyId);
       res.json({ success: true });
     } catch (err) {
       if (err instanceof NotFoundError) {
@@ -139,7 +155,7 @@ router.delete(
   },
 );
 
-// 論理削除した銘柄をアーカイブから復元する
+// アーカイブしたウォッチを復元する
 router.post(
   "/:id/restore",
   authMiddleware,
@@ -153,7 +169,7 @@ router.post(
         return res.status(400).json({ error: "idが指定されていません" });
       }
       const companyId = asCompanyId(id);
-      await restoreCompany(companyId);
+      await restoreCompany(requireUserId(req), companyId);
       res.json({ success: true });
     } catch (err) {
       if (err instanceof NotFoundError) {

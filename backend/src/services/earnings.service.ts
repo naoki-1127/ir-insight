@@ -25,9 +25,9 @@ export const enqueue8KJobs = async (companyId: CompanyId, cik: string) => {
 //ここではDB存在チェックとキュー投入だけを行う
 export const checkAllCompaniesForNew8K = async (): Promise<checkNew8k> => {
   try {
-    // 論理削除済みの銘柄は新着チェックの対象から除外する
+    // 誰か 1 人以上がウォッチ中（アーカイブしていない）の銘柄だけを新着チェックの対象にする
     const companies = await prisma.company.findMany({
-      where: { deletedAt: null },
+      where: { watchlists: { some: { archivedAt: null } } },
       select: { id: true, ticker: true, cik: true },
     });
     console.log(`[check-all] checking: ${companies.length} companies`);
