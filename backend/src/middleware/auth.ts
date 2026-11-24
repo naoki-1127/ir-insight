@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
+import { asUserId } from "../types/branded.js";
+import { ALL_SCOPES, type Principal } from "../types/principal.js";
 
 const SECRET = process.env.JWT_SECRET;
 if (!SECRET) {
@@ -24,6 +26,8 @@ export const authMiddleware = (
   try {
     const payload = jwt.verify(token, SECRET) as { userId: string };
     req.userId = payload.userId;
+    // Web のログインユーザは自分のデータをすべて操作できる
+    req.principal = { userId: asUserId(payload.userId), scopes: ALL_SCOPES };
     next();
   } catch (err) {
     return res.status(401).json({ error: "Invalid token" });
@@ -51,16 +55,19 @@ export const authOrApiKeyMiddleware = (
   const provided = req.headers["x-api-key"];
   if (apiKey && typeof provided === "string" && provided === apiKey) {
     req.userId = MCP_API_KEY_USER_ID;
+    req.principal = {
+      userId: asUserId(MCP_API_KEY_USER_ID!),
+      scopes: ALL_SCOPES,
+    };
     return next();
   }
   return authMiddleware(req, res, next);
 };
 
-// 認証ミドルウェアの後で使う。userId が無ければ認証ミドルウェアの付け忘れなので例外にする
-export const requireUserId = (req: Request): string => {
-  const userId = (req as AuthRequest).userId;
-  if (!userId) {
-    throw new Error("userId is not set. Is the auth middleware missing?");
+// 認証ミドルウェアの後で使う。Principal が無ければ認証ミドルウェアの付け忘れなので例外にする
+export const requirePrincipal = (req: Request): Principal => {
+  if (!req.principal) {
+    throw new Error("principal is not set. Is the auth middleware missing?");
   }
-  return userId;
+  return req.principal;
 };

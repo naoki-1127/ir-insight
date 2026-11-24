@@ -3,7 +3,7 @@ import { Request, Response, Router } from "express";
 import {
   authMiddleware,
   authOrApiKeyMiddleware,
-  requireUserId,
+  requirePrincipal,
 } from "../middleware/auth.js";
 import { getGuidanse, summarizeIRText } from "../services/ai.service.js";
 import {
@@ -53,7 +53,7 @@ export type SummaryTextResponse =
 // ウォッチ中の銘柄一覧（アーカイブ済みは含まない）
 router.get("/companies", authOrApiKeyMiddleware, async (req, res) => {
   try {
-    const data = await getCompaniesWithDocument(requireUserId(req));
+    const data = await getCompaniesWithDocument(requirePrincipal(req));
     return res.json(data);
   } catch (err) {
     console.error(err);
@@ -64,7 +64,7 @@ router.get("/companies", authOrApiKeyMiddleware, async (req, res) => {
 // アーカイブ済みの銘柄一覧
 router.get("/companies/archived", authMiddleware, async (req, res) => {
   try {
-    const data = await getArchivedCompaniesWithDocument(requireUserId(req));
+    const data = await getArchivedCompaniesWithDocument(requirePrincipal(req));
     return res.json(data);
   } catch (err) {
     console.error(err);

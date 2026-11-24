@@ -12,6 +12,7 @@ model User {
   password  String
   createdAt  DateTime    @default(now())
   watchlists Watchlist[]
+  apiKeys    ApiKey[]
 }
 
 // EDGAR 由来の銘柄マスタ（全ユーザ共有）。
@@ -89,4 +90,22 @@ model Financial {
   document  Document? @relation(fields: [documentId], references: [id])
   createdAt DateTime @default(now())
   @@unique([companyId, fiscalYear, fiscalQuarter, periodType])
+}
+
+// MCP 用のユーザごとの API キー（ADR 0002）。
+// キー本体は保存せず、SHA-256 のハッシュだけを持つ。発行時に一度だけ表示する。
+model ApiKey {
+  id         String    @id @default(uuid())
+  userId     String
+  name       String // 用途のメモ（例：claude-code）
+  prefix     String // 表示用のキーの先頭（例：iri_AbCd1234）。照合には使わない
+  keyHash    String    @unique // SHA-256（hex）
+  scopes     String[]
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime?
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

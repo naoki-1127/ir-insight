@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import {
   authMiddleware,
   authOrApiKeyMiddleware,
-  requireUserId,
+  requirePrincipal,
 } from "../middleware/auth.js";
 import {
   searchCompanies,
@@ -14,7 +14,6 @@ import {
   getFinance,
 } from "../services/company.service.js";
 import {
-  enqueue8KJobs,
   checkAllCompaniesForNew8K,
   type checkNew8k,
 } from "../services/earnings.service.js";
@@ -108,16 +107,7 @@ router.post(
       return res.status(400).json({ error: "ticker は必須です" });
     }
     try {
-      const { company, isNew } = await registerCompany(
-        requireUserId(req),
-        ticker,
-      );
-      // マスタに新しく入った銘柄だけ初回取得する。既存の銘柄は取得・要約済み
-      if (isNew) {
-        enqueue8KJobs(company.id, company.cik).catch((e) =>
-          console.error(`[enqueue] failed: ${e.message}`),
-        );
-      }
+      const { company } = await registerCompany(requirePrincipal(req), ticker);
       res.json({ company });
     } catch (err) {
       if (err instanceof NotFoundError) {
@@ -143,7 +133,7 @@ router.delete(
         return res.status(400).json({ error: "idが指定されていません" });
       }
       const companyId = asCompanyId(id);
-      await deleteCompany(requireUserId(req), companyId);
+      await deleteCompany(requirePrincipal(req), companyId);
       res.json({ success: true });
     } catch (err) {
       if (err instanceof NotFoundError) {
@@ -169,7 +159,7 @@ router.post(
         return res.status(400).json({ error: "idが指定されていません" });
       }
       const companyId = asCompanyId(id);
-      await restoreCompany(requireUserId(req), companyId);
+      await restoreCompany(requirePrincipal(req), companyId);
       res.json({ success: true });
     } catch (err) {
       if (err instanceof NotFoundError) {

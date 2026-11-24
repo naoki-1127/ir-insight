@@ -2,6 +2,8 @@ import { redis } from "../lib/redis.js";
 import { prisma } from "../lib/prisma.js";
 import type { CompanyId } from "../types/branded.js";
 import { asCompanyId } from "../types/branded.js";
+import type { Principal } from "../types/principal.js";
+import { enqueue8KJobs } from "./earnings.service.js";
 
 const TICKER_MAP_KEY = "ticker_map";
 const TICKER_MAP_TTL = 86400; // 24時間
@@ -78,9 +80,9 @@ const documentsInclude = {
 // - ticker は EDGAR の企業一覧で解決し、実在する銘柄だけをマスタに入れる
 // - Company の列は EDGAR の値だけで埋め、利用者の入力は使わない
 // - マスタになければ追加し（遅延登録）、ウォッチを追加する。アーカイブ済みなら復元する
-// isNew はマスタに新しく追加されたかどうか。初回取得ジョブの投入要否に使う
+// マスタに新しく追加した銘柄だけ初回取得ジョブを投入する（既存の銘柄は取得・要約済み）
 export const registerCompany = async (
-  userId: string,
+  { userId }: Principal,
   ticker: string,
 ): Promise<{ company: RegisteredCompany; isNew: boolean }> => {
   const entries = await fetchTickerMap();
@@ -106,6 +108,12 @@ export const registerCompany = async (
     return { company, isNew: !existing };
   });
 
+  if (isNew) {
+    enqueue8KJobs(asCompanyId(company.id), company.cik).catch((e) =>
+      console.error(`[enqueue] failed: ${e.message}`),
+    );
+  }
+
   return {
     company: {
       id: asCompanyId(company.id),
@@ -120,7 +128,7 @@ export const registerCompany = async (
 };
 
 // ウォッチ中（ギャラリー表示用）の銘柄一覧
-export const getCompaniesWithDocument = async (userId: string) => {
+export const getCompaniesWithDocument = async ({ userId }: Principal) => {
   return prisma.company.findMany({
     where: { watchlists: { some: { userId, archivedAt: null } } },
     include: documentsInclude,
@@ -128,7 +136,9 @@ export const getCompaniesWithDocument = async (userId: string) => {
 };
 
 // アーカイブ済み（アーカイブ表示用）の銘柄一覧。アーカイブした日時の新しい順
-export const getArchivedCompaniesWithDocument = async (userId: string) => {
+export const getArchivedCompaniesWithDocument = async ({
+  userId,
+}: Principal) => {
   const rows = await prisma.watchlist.findMany({
     where: { userId, archivedAt: { not: null } },
     orderBy: { archivedAt: "desc" },
@@ -221,11 +231,11 @@ export const getDocumentContent = async (documentId: string) => {
 };
 
 // ウォッチをアーカイブする。マスタと取得済みの決算（Document / DocumentContent / Financial）はそのまま残す
-export const deleteCompany = (userId: string, id: CompanyId) =>
+export const deleteCompany = ({ userId }: Principal, id: CompanyId) =>
   setArchivedAt(userId, id, new Date());
 
 // アーカイブしたウォッチをギャラリー表示に戻す
-export const restoreCompany = (userId: string, id: CompanyId) =>
+export const restoreCompany = ({ userId }: Principal, id: CompanyId) =>
   setArchivedAt(userId, id, null);
 
 const setArchivedAt = async (

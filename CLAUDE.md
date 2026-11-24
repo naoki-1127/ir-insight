@@ -202,6 +202,8 @@ Compose 用の env はリポジトリ直下の `.env.local` と `.env.prod` に�
 - ポートの公開は override 側だけで行う。共通の `docker-compose.yml` には `ports:` を書かない
 - ローカルと本番で同じ PostgreSQL のメジャーバージョン（15）を使う。SQLite で代用しない
 - マイグレーションは `prisma migrate deploy` で両環境に適用する（所有者ロールで実行する）
+- MCP 用の API キーは backend の CLI で発行・一覧・失効する（`npm run apikey -- create --email <email> --name <name>`。[ADR 0002](docs/adr/0002-per-user-api-keys-and-internal-api.md)）
+- backend のテスト：`npm test`（Node のテストランナーを tsx で実行する）
 - MCP の動作確認
   - リモート（HTTP）：MCP Inspector か Claude Code から `http://localhost:8081/mcp`
 - Go のビルド成果物（`mcp-server/mcp-server`、`edgar-checker/edgar-checker`）はコミットしない

@@ -4,7 +4,9 @@
   "scripts": {
     "dev": "nodemon --exec tsx src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "apikey": "tsx src/scripts/apikey.ts",
+    "test": "tsx --test test/*.test.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.6.0",
