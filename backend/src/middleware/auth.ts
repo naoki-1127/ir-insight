@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
+import { asUserId } from "../types/branded.js";
+import { ALL_SCOPES, type Principal } from "../types/principal.js";
 
 const SECRET = process.env.JWT_SECRET;
 if (!SECRET) {
@@ -24,14 +26,25 @@ export const authMiddleware = (
   try {
     const payload = jwt.verify(token, SECRET) as { userId: string };
     req.userId = payload.userId;
+    // Web のログインユーザは自分のデータをすべて操作できる
+    req.principal = { userId: asUserId(payload.userId), scopes: ALL_SCOPES };
     next();
   } catch (err) {
     return res.status(401).json({ error: "Invalid token" });
   }
 };
 
+// 共有キー(MCP_API_KEY)で呼ばれたときに、どのユーザとして扱うか。
+// ウォッチはユーザごとなので、共有キーにもユーザを割り当てる必要がある。
+// ユーザごとの API キー（内部 API）に置き換えるまでの暫定措置。
+const MCP_API_KEY_USER_ID = process.env.MCP_API_KEY_USER_ID;
+if (process.env.MCP_API_KEY && !MCP_API_KEY_USER_ID) {
+  throw new Error("MCP_API_KEY_USER_ID is required when MCP_API_KEY is set");
+}
+
 // MCPサーバーなど、ユーザーを持たない内部クライアント向け。
-// JWT の代わりに x-api-key ヘッダーの共有シークレット(MCP_API_KEY)でも通す。
+// JWT の代わりに x-api-key ヘッダーの共有シークレット(MCP_API_KEY)でも通し、
+// MCP_API_KEY_USER_ID のユーザとして扱う。
 // 全ルートに付けると削除などもAPIキーで可能になるため、必要なルートにだけ付けること。
 export const authOrApiKeyMiddleware = (
   req: AuthRequest,
@@ -41,7 +54,20 @@ export const authOrApiKeyMiddleware = (
   const apiKey = process.env.MCP_API_KEY;
   const provided = req.headers["x-api-key"];
   if (apiKey && typeof provided === "string" && provided === apiKey) {
+    req.userId = MCP_API_KEY_USER_ID;
+    req.principal = {
+      userId: asUserId(MCP_API_KEY_USER_ID!),
+      scopes: ALL_SCOPES,
+    };
     return next();
   }
   return authMiddleware(req, res, next);
+};
+
+// 認証ミドルウェアの後で使う。Principal が無ければ認証ミドルウェアの付け忘れなので例外にする
+export const requirePrincipal = (req: Request): Principal => {
+  if (!req.principal) {
+    throw new Error("principal is not set. Is the auth middleware missing?");
+  }
+  return req.principal;
 };

@@ -5,6 +5,7 @@ import cookieParser from "cookie-parser";
 import authRoutes from "./routes/auth.js";
 import irRoutes from "./routes/ir.js";
 import companyRoutes from "./routes/company.js";
+import internalRoutes from "./routes/internal.js";
 import "./queues/earningsWorker.js";
 
 const app = express();
@@ -20,6 +21,8 @@ app.use(cookieParser());
 app.use("/", authRoutes);
 app.use("/ir", irRoutes);
 app.use("/api/companies", companyRoutes);
+// mcp-server 向けの内部 API。本番では caddy で外部からの到達を拒否する
+app.use("/internal", internalRoutes);
 
 const port = Number(process.env.PORT) || 3000;
 app.listen(port, () => {
